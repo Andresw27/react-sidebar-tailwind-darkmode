@@ -10,6 +10,7 @@ import Users from "./pages/pagesAdmin/Users";
 import AdminPuntos from "./pages/AdminPuntos";
 import Clientes from "./pages/Clientes";
 import UserPerfil from "./pages/PerfilUser";
+import RedimirPuntos from "./pages/RedimirPuntos";
 import app from "./firebase-config";
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -50,6 +51,7 @@ const Routers = () => {
             <Route path="/estadisticas" element={<Estadisticas />} />
             <Route path="/users" element={<Users />} />
             <Route path="/perfil" element={<UserPerfil />} />
+            <Route path="/redimirPuntos" element={<RedimirPuntos />} />
 
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/puntos" element={<AdminPuntos />} />

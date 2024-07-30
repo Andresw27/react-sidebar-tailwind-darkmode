@@ -47,13 +47,15 @@ const user =useContext(UserContext)
       path: "/inicio",
       src: <FaHome />,
       activeSrc: <FaHome />,
-
+      roles: ["Usuario"], 
     },
     {
       title: "Productos",
       path: "/productos",
       src: <FaHamburger />,
       activeSrc: <FaHamburger />,
+      roles: ["Usuario"], 
+
     },
     {
       title: "Usuarios",
@@ -67,6 +69,8 @@ const user =useContext(UserContext)
       path: "#",
       src: <RiUserSettingsFill />,
       activeSrc: <RiUserSettingsFill />,
+      roles: ["Usuario"], 
+
       subMenus: [
         {
           title: "Clientes",
@@ -78,7 +82,7 @@ const user =useContext(UserContext)
         },
         {
           title: "Redemir Puntos",
-          path: "#",
+          path: "/redimirPuntos",
         },
       ],
     },

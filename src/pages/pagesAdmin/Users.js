@@ -235,6 +235,7 @@ function Users() {
         ndistribucion: ndistribucion,
         nentregado: nentregado,
         identificador: getRandomIdentifier(),
+        role:"Usuario"
       });
       console.log("User created successfully!");
       setAlertMessage("Usuario Añadido Con exito");

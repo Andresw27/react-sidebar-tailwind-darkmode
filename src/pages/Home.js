@@ -802,7 +802,7 @@ const Home = ({ totalValue }) => {
                               </button>
                             </Tooltip>
 
-                            <Modal isOpen={isModalOpen} onClose={closeModal}>
+                            <Modal isOpen={isModalOpen} nombre="Agregar Productos" onClose={closeModal}>
                               <Carrito
                                 ordenId={order.id}
                                 closeModal={closeModal}

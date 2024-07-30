@@ -3,13 +3,21 @@ import Layout from "../components/Layout";
 import { IoSearch, IoClose, IoSettingsSharp } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
 import { FaCoins } from "react-icons/fa";
+import { BsGiftFill } from "react-icons/bs";
+import { IoEye } from "react-icons/io5";
 
 import Modal from "../components/Modal";
 import { UserContext } from "../UserContext";
 import Alert from "../components/Alert";
 function AdminPuntos() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchTermPremio, setSearchTermPremio] = useState("");
+  const [searchVisiblePremio, setSearchVisiblePremio] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
+  const [currentPagePremio, setCurrentPagePremio] = useState(1);
+  const [rowsPerPagePremio] = useState(4);
+
   const [rowsPerPage] = useState(5);
   const [searchVisible, setSearchVisible] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -17,12 +25,30 @@ function AdminPuntos() {
   const [selectCliente, setSelectCliente] = useState(null);
   const [valorPuntos, setValorPuntos] = useState("");
   const [compraValor, setCompraValor] = useState("");
-  const [showAlert, setShowAlert] = useState(false); // Estado para mostrar la alerta
-  const [alertMessage, setAlertMessage] = useState(""); // Estado para el mensaje de la alerta
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [Openmodalpremios, setOpenModalPremios] = useState("");
+  const [openViewPremios, setOpenviewPremios] = useState("");
   const user = useContext(UserContext);
 
-  const [dataClientesFactura, setDataClientesFactura] = useState([]);
+  const openModalPremios = () => {
+    setOpenModalPremios(true);
+  };
 
+  const ClosedModalPremios = () => {
+    setOpenModalPremios(false);
+  };
+
+  const openModalViewPremios = () => {
+    setOpenviewPremios(true);
+    setOpenModalPremios(false);
+  };
+
+  const ClosedModalViewPremios = () => {
+    setOpenviewPremios(false);
+  };
+
+  const [dataClientesFactura, setDataClientesFactura] = useState([]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -91,6 +117,14 @@ function AdminPuntos() {
     setSearchTerm("");
     setSearchVisible(false);
   };
+  const handleSearchClickPremio = () => {
+    setSearchVisiblePremio(true);
+  };
+
+  const handleCloseClickPremio = () => {
+    setSearchTermPremio("");
+    setSearchVisiblePremio(false);
+  };
   //modal Validar puntos
   const openEditModal = (cliente) => {
     setSelectCliente(cliente);
@@ -120,7 +154,6 @@ function AdminPuntos() {
   };
 
   const HandleAprovedCliente = async (cliente) => {
-
     const clienteAprobado = {
       estado: "Aprobado",
       nombre: cliente.nombre,
@@ -147,7 +180,7 @@ function AdminPuntos() {
         const result = await response.json();
         setAlertMessage("Cliente aprobadoddd correctamente");
         setShowAlert(true);
-       
+
         closeEditModal();
       } else {
         throw new Error("Received non-JSON response");
@@ -175,7 +208,34 @@ function AdminPuntos() {
     indexOfFirstProduct,
     indexOfLastProduct
   );
+
+  const dataPremio = [
+    { nombrePremio: "Domicilio gratis", totalPuntos: "400" },
+    { nombrePremio: "20% en Pizza familiar", totalPuntos: "1000" },
+    { nombrePremio: "80% Proximo pedido", totalPuntos: "80000" },
+  ];
+
+  const filterDataPremio = dataPremio.filter(
+    (premio) =>
+      (premio.nombrePremio
+        ?.toLowerCase()
+        .includes(searchTermPremio.toLowerCase()) ??
+        false) ||
+      (premio.totalPuntos
+        ?.toLowerCase()
+        .includes(searchTermPremio.toLowerCase()) ??
+        false)
+  );
+
+  const indexOfLastPremio = currentPagePremio * rowsPerPagePremio;
+  const indexOfFirstPremio = indexOfLastPremio - rowsPerPagePremio;
+  const CurrentPremio = filterDataPremio.slice(
+    indexOfFirstPremio,
+    indexOfLastPremio
+  );
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const paginatePremio = (pageNumber) => setCurrentPagePremio(pageNumber);
 
   return (
     <Layout>
@@ -229,11 +289,12 @@ function AdminPuntos() {
                 <FaCoins className="text-yellow-400" />
               </div>
               <p className="text-yellow-400 font-semibold">
-                {" "}
-                {`${Number(user.valorMinimo).toLocaleString("es-CO", {
-                  style: "currency",
-                  currency: "COP",
-                })}`}
+                {user.valorMinimo === ""
+                  ? "0"
+                  : Number(user.valorMinimo).toLocaleString("es-CO", {
+                      style: "currency",
+                      currency: "COP",
+                    })}
               </p>
             </div>
 
@@ -285,17 +346,176 @@ function AdminPuntos() {
               </form>
             </Modal>
           </div>
-          <div>
-            <div
-              className="bg-slate-50 cursor-pointer gap-2 p-2 text-2xl flex justify-center items-center rounded-full"
-              onClick={openPuntosModal}
-            >
-              <p className="text-base text-zinc-600 font-medium ">
-                Configurar Puntos
-              </p>
-              <IoSettingsSharp className="text-yellow-400" />
-            </div>
+          <div className="flex justify-center items-center gap-6">
+            <Tooltip content="Configurar Puntos">
+              <div
+                className="bg-slate-50 cursor-pointer gap-2 p-2 text-2xl flex justify-center items-center rounded-full"
+                onClick={openPuntosModal}
+              >
+                <IoSettingsSharp className="text-yellow-500" />
+              </div>
+            </Tooltip>
+            <Tooltip content="Configurar Premios">
+              <div
+                className="bg-slate-50 cursor-pointer gap-2 p-2 text-2xl flex justify-center items-center rounded-full"
+                onClick={openModalPremios}
+              >
+                <BsGiftFill className="text-red-600" />
+              </div>
+            </Tooltip>
           </div>
+          <Modal
+            acciononClick={openModalViewPremios}
+            nombre={"Configurar Premios"}
+            conteTooltip={"Ver Premios"}
+            accion={<IoEye className="text-indigo-700 hover:text-white" />}
+            isOpen={Openmodalpremios}
+            onClose={ClosedModalPremios}
+          >
+            <form className="space-y-4 my-10">
+              <div className="-mx-3 md:flex mb-2">
+                <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                  <label
+                    htmlFor="number"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Nombre Premio
+                  </label>
+                  <input
+                    type="text"
+                    // onChange={(e) => setValorPuntos(e.target.value)}
+                    // value={valorPuntos}
+                    id="nombrePremio"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    required
+                  />
+                </div>
+                <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                  <label
+                    htmlFor="number"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Cantidad de puntos
+                  </label>
+                  <input
+                    type="number"
+                    // onChange={(e) => setValorPuntos(e.target.value)}
+                    // value={valorPuntos}
+                    id="totalPuntos"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              >
+                Configurar Puntos
+              </button>
+            </form>
+          </Modal>
+
+          <Modal
+            nombre="Premios"
+            isOpen={openViewPremios}
+            onClose={ClosedModalViewPremios}
+          >
+            <div className="col-span-2 relative overflow-x-auto shadow-md mx-4 sm:rounded-lg">
+              <div className="flex justify-between items-center p-4">
+                <div className="flex gap-4">
+                  {!searchVisiblePremio && (
+                    <div>
+                      <Tooltip content="Buscar Premio">
+                        <div
+                          className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full"
+                          onClick={handleSearchClickPremio}
+                        >
+                          <IoSearch />
+                        </div>
+                      </Tooltip>
+                    </div>
+                  )}
+                  {searchVisiblePremio && (
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        value={searchTermPremio}
+                        onChange={(e) => setSearchTermPremio(e.target.value)}
+                        className="p-2 border  border-gray-300 rounded-full"
+                        placeholder="Buscar orden..."
+                      />
+                      <div
+                        className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full ml-2"
+                        onClick={handleCloseClickPremio}
+                      >
+                        <IoClose />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                  <tr>
+                    <th scope="col" className="px-40 py-3">
+                      Nombre Premio
+                    </th>
+
+                    <th scope="col" className="px-40 py-3">
+                      Cantidad de puntos
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CurrentPremio.length === 0 ? (
+                    <p className="text-center text-xs mx-10   flex justify-center items-center mt-10 mb-10">
+                      No hay premios disponibles por favor agregue un premio
+                    </p>
+                  ) : (
+                    CurrentPremio.map((premio, index) => (
+                      <tr
+                        key={index}
+                        className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                      >
+                        <td className="px-40 py-4 font-semibold text-gray-900 dark:text-white">
+                          {premio.nombrePremio}
+                        </td>
+                        <td className="px-40 text-center py-4 font-semibold text-gray-900 dark:text-white">
+                          {premio.totalPuntos}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-2 flex justify-end mx-4">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => paginatePremio(currentPagePremio - 1)}
+                  disabled={currentPagePremio === 1}
+                  className="p-2 border border-gray-300 rounded"
+                >
+                  Anterior
+                </button>
+                <span>{`Page ${currentPagePremio} of ${Math.ceil(
+                  filterDataPremio.length / rowsPerPagePremio
+                )}`}</span>
+                <button
+                  onClick={() => paginatePremio(currentPagePremio + 1)}
+                  disabled={
+                    currentPagePremio ===
+                    Math.ceil(filterDataPremio.length / rowsPerPagePremio)
+                  }
+                  className="p-2 border border-gray-300 rounded"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          </Modal>
         </div>
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">

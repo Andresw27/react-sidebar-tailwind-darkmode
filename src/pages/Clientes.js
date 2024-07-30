@@ -47,8 +47,7 @@ function Clientes() {
   const filterDataCliente = dataClientes.filter(
     (cliente) =>
       (cliente.id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-      (cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-      (cliente.puntos?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+      (cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) 
   );
 
   const indexOfLastProduct = currentPage * rowsPerPage;
