@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "jeicydelivery",
+    "jeicydelivery": "jeicydelivery"
+  },
+  "targets": {},
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
+}

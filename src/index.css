@@ -7,3 +7,7 @@
 
 @tailwind components;
 @tailwind utilities;
+.custom-width {
+  @apply w-96; /* Tailwind classes */
+  width: 324px; /* Custom width */
+}
