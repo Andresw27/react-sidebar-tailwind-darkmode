@@ -1,13 +1,14 @@
-import React, { useState, useEffect,useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import Layout from "../components/Layout";
 import { BiBriefcaseAlt } from "react-icons/bi";
 import { MdOutlinePendingActions } from "react-icons/md";
 import { FaMotorcycle } from "react-icons/fa";
 import { Tooltip } from "@material-tailwind/react";
 import { FaRegEdit } from "react-icons/fa";
-import { IoFilter,IoClose } from "react-icons/io5";
+import { IoFilter, IoClose } from "react-icons/io5";
 import { IoSearch } from "react-icons/io5";
-
+import { db } from "../firebase-config";
+import { collection, query, where, onSnapshot, doc, getDocs, orderBy } from "firebase/firestore";
 import { FaFileInvoice } from "react-icons/fa";
 import Modal from "../components/Modal";
 import Carrito from "../components/Carrito";
@@ -15,6 +16,7 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import Alert from "../components/Alert";
 import { UserContext } from "../UserContext"; // Asegúrate de ajustar la ruta correcta
+import { useSelector } from "react-redux";
 
 // import notificationSound from '../assets/Npedido.mp3'
 const Home = ({ totalValue }) => {
@@ -22,7 +24,7 @@ const Home = ({ totalValue }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(3);
+  const [rowsPerPage] = useState(6);
   const [valorTotal, setValorTotal] = useState(0);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -30,8 +32,10 @@ const Home = ({ totalValue }) => {
     estado: null,
   });
   const [openFilter, setOpenFilter] = useState();
- const [searchVisible, setSearchVisible] = useState(false);
- const user = useContext(UserContext);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [numeroWp, setNumeroWp] = useState(0);
+
+  const { uidUser, identificador } = useSelector(state => state.user);
 
 
 
@@ -51,22 +55,57 @@ const Home = ({ totalValue }) => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${user.identificador}`
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
       );
-      const data = await response.json();
-      setValorTotal(data.pedidos.valor);
-      setDataOrder(data.pedidos);
-      console.log("la data esssssddddddddds", data.pedidos);
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const ordersRef = collection(db, "pedidos", uidUser, "historial");
+      const ordersQuery = query(ordersRef, orderBy("createdAt", "asc"));
+
+      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+        const pedidos = [];
+        snapshot.forEach((doc) => {
+          const pedido = doc.data();
+
+          // Verificar que 'carrito' está definido y es un array antes de usar reduce
+          const valorTotal = Array.isArray(pedido.carrito)
+            ? pedido.carrito.reduce((acc, item) => acc + (item.cantidad * item.valorp), 0)
+            : 0;
+
+          pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
+        });
+
+        const valorTotalPedidos = pedidos.reduce((acc, pedido) => acc + pedido.valor, 0);
+        setValorTotal(valorTotalPedidos);
+        setDataOrder(pedidos);
+        console.log("Pedidos actualizados:", pedidos);
+      });
+
+      return () => unsubscribe();
     } catch (error) {
-      console.error("Error al obtener los datos:", error);
+      console.error("Error al obtener los datos:", error.message);
     }
   };
+
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
+
+  
   //NUEVO PEDIDO
   // useEffect(() => {
   //   if (previousOrders.length < dataOrder.length) {
@@ -116,6 +155,8 @@ const Home = ({ totalValue }) => {
 
   const handleChangeselect = async (id, value) => {
     const newDataOrder = [...dataOrder];
+    console.log('changeselect',newDataOrder);
+
     const orderIndex = newDataOrder.findIndex((order) => order.id === id);
     if (orderIndex !== -1) {
       newDataOrder[orderIndex].estado = value;
@@ -123,11 +164,13 @@ const Home = ({ totalValue }) => {
 
       // Obtener el id de la orden
       const orderId = newDataOrder[orderIndex].id;
+      setNumeroWp(newDataOrder[orderIndex].numeroWp)
 
+      // Actualizar la orden en el servidor
       // Persistir los cambios en el servidor
       try {
         const response = await fetch(
-          `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${user.identificador}/${orderId}`,
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}/${orderId}`,
           {
             method: "PUT",
             headers: {
@@ -149,18 +192,20 @@ const Home = ({ totalValue }) => {
     }
   };
 
+  console.log("numeroWp", numeroWp);
   // Función para manejar el blur (cuando se pierde el foco) del input de edición
   const handleBlur = async () => {
     const newDataOrder = [...dataOrder];
     const orderIndex = newDataOrder.findIndex(
       (order) => order.id === editOrderId
     );
+    console.log("orderID: " + orderIndex);
     if (orderIndex !== -1) {
       const orderId = newDataOrder[orderIndex].id;
-
+  
       try {
         const response = await fetch(
-          `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${user.identificador}/${orderId}`,
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}/${orderId}`,
           {
             method: "PUT",
             headers: {
@@ -448,35 +493,35 @@ const Home = ({ totalValue }) => {
           <div className="relative overflow-x-auto max-w-full  sm:rounded-lg">
             <div className="flex flex-col sm:flex-row flex-wrap items-center mx-8 justify-between pb-2">
               <div className="flex gap-4">
-              {!searchVisible && (
-        <div>
-          <Tooltip content="Buscar Pedido">
-            <div
-              className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full"
-              onClick={handleSearchClick}
-            >
-              <IoSearch />
-            </div>
-          </Tooltip>
-        </div>
-      )}
-      {searchVisible && (
-        <div className="flex items-center">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 border  border-gray-300 rounded-full"
-            placeholder="Buscar orden..."
-          />
-          <div
-            className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full ml-2"
-            onClick={handleCloseClick}
-          >
-            <IoClose />
-          </div>
-        </div>
-      )}
+                {!searchVisible && (
+                  <div>
+                    <Tooltip content="Buscar Pedido">
+                      <div
+                        className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full"
+                        onClick={handleSearchClick}
+                      >
+                        <IoSearch />
+                      </div>
+                    </Tooltip>
+                  </div>
+                )}
+                {searchVisible && (
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="p-2 border  border-gray-300 rounded-full"
+                      placeholder="Buscar orden..."
+                    />
+                    <div
+                      className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full ml-2"
+                      onClick={handleCloseClick}
+                    >
+                      <IoClose />
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Tooltip content="Filtrar por estado">
@@ -489,61 +534,57 @@ const Home = ({ totalValue }) => {
                   </Tooltip>
                 </div>
                 {openFilter && (
-                <div className="flex justify-start gap-4 ">
-                  <button
-                    className={`p-2 rounded-full ${
-                      isFilterActive("estado", "Solicitado")
+                  <div className="flex justify-start gap-4 ">
+                    <button
+                      className={`p-2 rounded-full ${isFilterActive("estado", "Solicitado")
                         ? "bg-red-100 text-black font-semibold"
                         : "bg-gray-50"
-                    }`}
-                    onClick={() => handleFilterChange("estado", "Solicitado")}
-                  >
-                    Solicitado
-                  </button>
-                  <button
-                    className={`p-2 rounded-full ${
-                      isFilterActive("estado", "Aceptado")
+                        }`}
+                      onClick={() => handleFilterChange("estado", "Solicitado")}
+                    >
+                      Solicitado
+                    </button>
+                    <button
+                      className={`p-2 rounded-full ${isFilterActive("estado", "Aceptado")
                         ? "bg-blue-100 text-black font-semibold"
                         : "bg-gray-50"
-                    }`}
-                    onClick={() => handleFilterChange("estado", "Aceptado")}
-                  >
-                    Aceptado
-                  </button>
-                  <button
-                    className={`p-2 rounded-full ${
-                      isFilterActive("estado", "Distribucion")
+                        }`}
+                      onClick={() => handleFilterChange("estado", "Aceptado")}
+                    >
+                      Aceptado
+                    </button>
+                    <button
+                      className={`p-2 rounded-full ${isFilterActive("estado", "Distribucion")
                         ? "bg-yellow-100 text-black font-semibold"
                         : "bg-gray-50"
-                    }`}
-                    onClick={() => handleFilterChange("estado", "Distribucion")}
-                  >
-                    Distribucion
-                  </button>
-                  <button
-                    className={`p-2 rounded-full ${
-                      isFilterActive("estado", "Entregado")
+                        }`}
+                      onClick={() => handleFilterChange("estado", "Distribucion")}
+                    >
+                      Distribucion
+                    </button>
+                    <button
+                      className={`p-2 rounded-full ${isFilterActive("estado", "Entregado")
                         ? "bg-green-100 text-black font-semibold"
                         : "bg-gray-50"
-                    }`}
-                    onClick={() => handleFilterChange("estado", "Entregado")}
-                  >
-                    Entregado
-                  </button>
+                        }`}
+                      onClick={() => handleFilterChange("estado", "Entregado")}
+                    >
+                      Entregado
+                    </button>
 
-                  <button
-                    onClick={handleClearAndCloseFilters}
-                
-                  >
-                    <p className="font-bold">Limpiar y cerrar filtros</p>
-                  </button>
-                </div>
-              )}
+                    <button
+                      onClick={handleClearAndCloseFilters}
+
+                    >
+                      <p className="font-bold">Limpiar y cerrar filtros</p>
+                    </button>
+                  </div>
+                )}
               </div>
 
-             
 
-            
+
+
             </div>
             <div className="overflow-x-auto mx-4 shadow-md sm:rounded-lg">
               <table className="w-full text-xs text-left rtl:text-right text-gray-500 dark:text-gray-400">
@@ -609,9 +650,8 @@ const Home = ({ totalValue }) => {
                       </td>
                       <td
                         hidden
-                        className={`${
-                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                        }`}
+                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -629,11 +669,10 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id
-                            ? "px-2 py-2 sm:px-0 sm:py-3"
-                            : "px-2 py-2 sm:px-2 sm:py-3"
-                        }`}
+                        className={`${editOrderId === order.id
+                          ? "px-2 py-2 sm:px-0 sm:py-3"
+                          : "px-2 py-2 sm:px-2 sm:py-3"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -653,9 +692,8 @@ const Home = ({ totalValue }) => {
                       </td>
                       <td
                         hidden
-                        className={`${
-                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                        }`}
+                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -673,9 +711,8 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                        }`}
+                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -694,9 +731,8 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                        }`}
+                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -715,9 +751,8 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                        }`}
+                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -736,11 +771,10 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id
-                            ? "px-2 py-2 sm:px-0 sm:py-3 "
-                            : "px-2 py-2 sm:px-0 sm:py-3"
-                        }`}
+                        className={`${editOrderId === order.id
+                          ? "px-2 py-2 sm:px-0 sm:py-3 "
+                          : "px-2 py-2 sm:px-0 sm:py-3"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -761,11 +795,10 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id
-                            ? "px-2 py-2 sm:px-0 sm:py-3"
-                            : "px-2 py-2 sm:px-4  sm:py-3"
-                        }`}
+                        className={`${editOrderId === order.id
+                          ? "px-2 py-2 sm:px-0 sm:py-3"
+                          : "px-2 py-2 sm:px-4  sm:py-3"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -784,11 +817,10 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${
-                          editOrderId === order.id
-                            ? "px-2 py-2 sm:px-0 sm:py-3"
-                            : "px-2 py-2 sm:px-0 sm:py-3"
-                        }`}
+                        className={`${editOrderId === order.id
+                          ? "px-2 py-2 sm:px-0 sm:py-3"
+                          : "px-2 py-2 sm:px-0 sm:py-3"
+                          }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -804,6 +836,7 @@ const Home = ({ totalValue }) => {
 
                             <Modal isOpen={isModalOpen} nombre="Agregar Productos" onClose={closeModal}>
                               <Carrito
+                                order={order}
                                 ordenId={order.id}
                                 closeModal={closeModal}
                                 onBlur={handleBlur}
@@ -816,6 +849,7 @@ const Home = ({ totalValue }) => {
                         ) : (
                           <Tooltip content={order.valor}>
                             <span>
+
                               {`${Number(order.valor).toLocaleString("es-CO", {
                                 style: "currency",
                                 currency: "COP",
@@ -868,7 +902,7 @@ const Home = ({ totalValue }) => {
                               type="button"
                               onClick={() => handleEdit(order.id)}
                               className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2 text-center inline-flex items-center dark:focus:ring-yellow-900"
-                              >
+                            >
                               <FaRegEdit />
                             </button>
                           </Tooltip>
@@ -877,7 +911,7 @@ const Home = ({ totalValue }) => {
                               type="button"
                               onClick={() => generarFactura(order)}
                               className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm p-2 text-center inline-flex items-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
-                              >
+                            >
                               <FaFileInvoice />
                             </button>
                           </Tooltip>
@@ -887,30 +921,30 @@ const Home = ({ totalValue }) => {
                   ))}
                 </tbody>
               </table>
-              
+
             </div>
             <div className="flex justify-end mx-4 mt-6 items-center space-x-2">
-                <button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="p-2 border border-gray-300 rounded"
-                >
-                  Anterior
-                </button>
-                <span>{`Page ${currentPage} of ${Math.ceil(
-                  filteredOrder.length / rowsPerPage
-                )}`}</span>
-                <button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={
-                    currentPage ===
-                    Math.ceil(filteredOrder.length / rowsPerPage)
-                  }
-                  className="p-2 border border-gray-300 rounded"
-                >
-                  Siguiente
-                </button>
-              </div>
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-300 rounded"
+              >
+                Anterior
+              </button>
+              <span>{`Page ${currentPage} of ${Math.ceil(
+                filteredOrder.length / rowsPerPage
+              )}`}</span>
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={
+                  currentPage ===
+                  Math.ceil(filteredOrder.length / rowsPerPage)
+                }
+                className="p-2 border border-gray-300 rounded"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
         </div>
       </div>

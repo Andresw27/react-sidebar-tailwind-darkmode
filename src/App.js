@@ -3,14 +3,16 @@
 import Routers  from './routers'
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"; 
-import { UserProvider } from './UserContext';
+// import { UserProvider } from './UserContext';
+import store from './components/redux/store';
+import { Provider } from 'react-redux';
 
 function App() {
     
     return (
-    <UserProvider>
- <Routers/>
-    </UserProvider>
+    <Provider store={store}>
+        <Routers/>
+    </Provider>
      
     )
 }

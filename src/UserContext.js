@@ -19,7 +19,7 @@ const UserProvider = ({ children }) => {
         if (userAuth) {
           const userData = await fetchUserData(userAuth.uid);
           console.log("userGlobalsssss", userData);
-          setUser(userData);
+          setUser({...userData,uid:userAuth.uid});
           // Guardar el usuario en localStorage
           localStorage.setItem('user', JSON.stringify(userData));
         } else {

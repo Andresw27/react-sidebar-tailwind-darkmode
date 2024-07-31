@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import { IoSearch, IoClose } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
 import { UserContext } from "../UserContext"; // Asegúrate de ajustar la ruta correcta
+import { useSelector } from "react-redux";
 
 function Clientes() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -11,15 +12,14 @@ function Clientes() {
   const [searchVisible, setSearchVisible] = useState(false);
   const [dataClientes, setDataClientes] = useState([]);
   const [isLoading, setIsLoading] = useState(true); // Estado de carga
-  const user = useContext(UserContext);
-
-  console.log(user, "f");
+  const {identificador}=useSelector(state=>state.user)
+  
 
   const fetchClientes = async () => {
     try {
       setIsLoading(true); // Inicia la carga
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/obtenerAllPuntos/${user.identificador}`
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/obtenerAllPuntos/${identificador}`
       );
       const data = await response.json();
       setDataClientes(data.clientes);

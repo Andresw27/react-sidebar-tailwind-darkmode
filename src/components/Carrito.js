@@ -1,15 +1,28 @@
-import React, { useState, useEffect ,useContext} from "react";
-import Alert from '../components/Alert'; // Importa el componente de alerta
-import { UserContext } from "../UserContext";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 
-function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito ,onBlur }) {
+function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(6);
   const [cart, setCart] = useState([]);
   const [totalValue, setTotalValue] = useState(0);
   const [dataProductos, setDataProductos] = useState([]);
-  const user = useContext(UserContext);
+  const { identificador, valorMinimo, PuntosporValor } = useSelector(state => state.user);
+  const [numeroWp,setNumeroWp] = useState(0);
+
+  let Puntos=Number(PuntosporValor)
+  console.log("Puntos",Puntos)
+
+  useEffect(() => {
+    if (order && order.numeroWp) {
+      setNumeroWp(order.numeroWp);
+      console.log('numeroWp',numeroWp);
+    }
+  }, [order]);
+
+
+  console.log('valorminimo', valorMinimo);
   useEffect(() => {
     if (dataCarrito && dataCarrito.length > 0) {
       const initialCart = dataCarrito.map(item => ({
@@ -24,9 +37,7 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito ,onBlur }) {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const response = await fetch(
-          `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${user.identificador}`
-        );
+        const response = await fetch(`https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${identificador}`);
         const data = await response.json();
         setDataProductos(data.productos);
         console.log("la data es", data.productos);
@@ -36,20 +47,16 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito ,onBlur }) {
     };
 
     fetchProductos();
-  }, []);
+  }, [identificador]);
 
   const filteredProducts = dataProductos.filter((product) =>
-    product.nombre.toLowerCase().includes(searchTerm.toLowerCase())||
+    product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.valor.toLowerCase().includes(searchTerm.toLowerCase())
-
   );
 
   const indexOfLastProduct = currentPage * rowsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - rowsPerPage;
-  const currentProducts = filteredProducts.slice(
-    indexOfFirstProduct,
-    indexOfLastProduct
-  );
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -98,13 +105,39 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito ,onBlur }) {
       producto: item.nombre,
       cantidad: item.quantity,
       valor: item.valor
-      
     }));
 
-    console.log(carritoV)
+    console.log("el total" , total,typeof(valorMinimo),typeof(PuntosporValor));
+
+    if (total >= valorMinimo) {
+      console.log("El total es mayor al valor mínimo", total+ " > " + valorMinimo);
+      try {
+        const response = await fetch(`https://us-central1-jeicydelivery.cloudfunctions.net/app/puntos/update/${identificador}/${numeroWp}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({puntos: Puntos}),
+        });
+      
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }else{
+          console.log("ok y puntos actualizados",Puntos,total)
+        }
+      
+        const updatedTotal = await response.text();
+        console.log("Puntos actualizados:", updatedTotal);
+      
+      } catch (error) {
+        console.error("Error al actualizar los puntos:", error.message);
+      }
+      
+    }
+
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${user.identificador}/${ordenId}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${identificador}/${ordenId}`,
         {
           method: "PUT",
           headers: {
@@ -120,9 +153,6 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito ,onBlur }) {
 
       const updatedTotal = await response.text();
       console.log("Valor total actualizado:", updatedTotal);
-      
-      fetchOrders();
-
     } catch (error) {
       console.error("Error al actualizar el valor total:", error);
     }
@@ -142,8 +172,6 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito ,onBlur }) {
 
   return (
     <div className="p-4 grid grid-cols-3 gap-4">
-      
-
       <div className="col-span-2 relative overflow-x-auto shadow-md sm:rounded-lg ">
         <div className="flex justify-between items-center p-4">
           <input

@@ -7,6 +7,7 @@ import Alert from "../components/Alert"; // Importa el componente de alerta
 import { IoSearch, IoClose } from "react-icons/io5";
 
 import { UserContext } from "../UserContext"; // Asegúrate de ajustar la ruta correcta
+import { useSelector } from "react-redux";
 
 function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -23,8 +24,10 @@ function Productos() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
   const [searchVisible, setSearchVisible] = useState(false);
-  const user = useContext(UserContext);
+  
+  const {identificador}=useSelector(state=>state.user)
 
+  
 
   const handleSearchClick = () => {
     setSearchVisible(true);
@@ -65,7 +68,7 @@ function Productos() {
   const fetchProductos = async () => {
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${user.identificador}`
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${identificador}`
       );
       const data = await response.json();
       setDataProductos(data.productos);
@@ -89,7 +92,7 @@ function Productos() {
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/new/${user.identificador}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/new/${identificador}`,
         {
           method: "POST",
           headers: {
@@ -121,7 +124,7 @@ function Productos() {
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${user.identificador}/${selectedProduct.id}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${identificador}/${selectedProduct.id}`,
         {
           method: "DELETE",
         }
@@ -173,7 +176,7 @@ function Productos() {
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/actualizar/${user.identificador}/${productToEdit.id}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/actualizar/${identificador}/${productToEdit.id}`,
         {
           method: "PUT",
           headers: {

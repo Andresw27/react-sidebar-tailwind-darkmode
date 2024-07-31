@@ -55,7 +55,7 @@ function Users() {
   //   setIsModalOpenn(false);
   //   setSelectedProduct(null);
   // };
-//filtrar user por pagina
+  //filtrar user por pagina
   const filterDataUsers = dataUsers.filter(
     (users) =>
       (users.nombreUsuario?.toLowerCase().includes(searchTerm.toLowerCase()) ??
@@ -94,10 +94,10 @@ function Users() {
     setNdistribucion(user.ndistribucion);
     setNentregado(user.nentregado);
     setEditModalOpen(true);
-    console.log('usuario edit',user)
+    console.log('usuario edit', user)
 
   };
-  console.log('d',UserEdit)
+  console.log('d', UserEdit)
 
   const closeEditModal = () => {
     setUserEdit(null);
@@ -114,7 +114,7 @@ function Users() {
     setNentregado("");
     setEditModalOpen(false);
   };
-//editar user
+  //editar user
   const handleEditSubmit = async (e) => {
     e.preventDefault();
 
@@ -127,16 +127,16 @@ function Users() {
       ...UserEdit,
       nombre: nombre,
       nombreEmpresa: nombreEmpresa,
-      correo:Email,
-      password:password,
-      telefono:telefono,
-      nit:nit,
-      idBot:IdBot,
-      direccion:direccion,
-      naceptado:naceptado,
-      ndistribucion:ndistribucion,
-      identificador:getRandomIdentifier(),
-      nentregado:nentregado,
+      correo: Email,
+      password: password,
+      telefono: telefono,
+      nit: nit,
+      idBot: IdBot,
+      direccion: direccion,
+      naceptado: naceptado,
+      ndistribucion: ndistribucion,
+      identificador: getRandomIdentifier(),
+      nentregado: nentregado,
     };
 
     console.log("Updated product payload:", JSON.stringify(updatedUser));
@@ -186,7 +186,7 @@ function Users() {
   useEffect(() => {
     fetchUser();
   }, []);
-//generar identificador unico aleatoriamente
+  //generar identificador unico aleatoriamente
   const getRandomIdentifier = () => {
     const characters =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -200,7 +200,7 @@ function Users() {
 
     return result;
   };
-//crear usuario
+  //crear usuario
   async function createUser(
     email,
     password,
@@ -229,13 +229,13 @@ function Users() {
         nombre: nombre,
         telefono: telefono,
         nit: nit,
-        idBot:IdBot,
+        idBot: IdBot,
         direccion: direccion,
         naceptado: naceptado,
         ndistribucion: ndistribucion,
         nentregado: nentregado,
         identificador: getRandomIdentifier(),
-        role:"Usuario"
+        role: "Usuario"
       });
       console.log("User created successfully!");
       setAlertMessage("Usuario Añadido Con exito");
@@ -398,35 +398,35 @@ function Users() {
                     </div>
                   </div>
                   <div className="-mx-3 md:flex mb-2">
-                  <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                    <label
-                      className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
-                      htmlFor="grid-password"
-                    >
-                      Direccion
-                    </label>
-                    <input
-                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
-                      id="direccion"
-                      type="text"
-                    />
+                    <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                      <label
+                        className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
+                        htmlFor="grid-password"
+                      >
+                        Direccion
+                      </label>
+                      <input
+                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
+                        id="direccion"
+                        type="text"
+                      />
+                    </div>
+                    <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                      <label
+                        className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
+                        htmlFor="grid-password"
+                      >
+                        Id Bot
+                      </label>
+                      <input
+                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
+                        id="IdBot"
+
+                        type="text"
+                      />
+                    </div>
                   </div>
-                  <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                    <label
-                      className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
-                      htmlFor="grid-password"
-                    >
-                      Id Bot
-                    </label>
-                    <input
-                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
-                      id="IdBot"
-                    
-                      type="text"
-                    />
-                  </div>
-                  </div>
-                 
+
                   <div className="-mx-3 md:flex mb-2">
                     <div className="md:w-1/2 px-3 mb-6 md:mb-0">
                       <label
@@ -516,8 +516,8 @@ function Users() {
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              <th scope="col" hidden className="px-6 py-3">
-                ID User
+              <th scope="col" className="px-6 py-3">
+                identificador
               </th>
               <th scope="col" hidden className="px-6 py-3">
                 ID Bots
@@ -561,9 +561,7 @@ function Users() {
                 key={index}
                 className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
-                <td
-                  hidden
-                  className="px-6 text-xs py-4 font-semibold text-gray-900 dark:text-white"
+                <td className="px-6 text-xs py-4 font-semibold text-gray-900 dark:text-white"
                 >
                   {user.identificador}
                 </td>
@@ -702,7 +700,7 @@ function Users() {
                       type="text"
                     />
                   </div>
-                 
+
                   <div className="md:w-full px-3">
                     <label
                       className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
@@ -720,39 +718,39 @@ function Users() {
                   </div>
                 </div>
                 <div className="-mx-3 md:flex mb-2">
-                <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                  <label
-                    className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
-                    htmlFor="grid-password"
-                  >
-                    Direccion
-                  </label>
-                  <input
-                    className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
-                    id="direccion"
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    type="text"
-                  />
-                </div>
-                <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                  <label
-                    className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
-                    htmlFor="grid-password"
-                  >
-                    ID Bot
-                  </label>
-                  <input
-                    className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
-                    id="idBot"
-                    value={IdBot}
-                    onChange={(e) => setIdBot(e.target.value)}
-                    type="text"
-                  />
-                </div>
+                  <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                    <label
+                      className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
+                      htmlFor="grid-password"
+                    >
+                      Direccion
+                    </label>
+                    <input
+                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
+                      id="direccion"
+                      value={direccion}
+                      onChange={(e) => setDireccion(e.target.value)}
+                      type="text"
+                    />
+                  </div>
+                  <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                    <label
+                      className="block uppercase tracking-wide text-grey-darker text-xs font-bold mb-2"
+                      htmlFor="grid-password"
+                    >
+                      ID Bot
+                    </label>
+                    <input
+                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
+                      id="idBot"
+                      value={IdBot}
+                      onChange={(e) => setIdBot(e.target.value)}
+                      type="text"
+                    />
+                  </div>
 
                 </div>
-              
+
                 <div className="-mx-3 md:flex mb-2">
                   <div className="md:w-1/2 px-3 mb-6 md:mb-0">
                     <label
@@ -841,7 +839,7 @@ function Users() {
                 type="submit"
                 className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
               >
-              Actualizar Usuario
+                Actualizar Usuario
               </button>
             </form>
           </div>

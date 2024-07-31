@@ -9,6 +9,12 @@ import { IoEye } from "react-icons/io5";
 import Modal from "../components/Modal";
 import { UserContext } from "../UserContext";
 import Alert from "../components/Alert";
+import { query,collection,where,getDocs,onSnapshot,doc } from "firebase/firestore";
+import { db } from "../firebase-config";
+import { useSelector } from "react-redux";
+
+
+
 function AdminPuntos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermPremio, setSearchTermPremio] = useState("");
@@ -30,7 +36,10 @@ function AdminPuntos() {
   const [Openmodalpremios, setOpenModalPremios] = useState("");
   const [openViewPremios, setOpenviewPremios] = useState("");
   const user = useContext(UserContext);
-
+  const [valorMinimo, setValorMinimo] = useState(0)
+  const [PuntosporValor, setPuntosporValor] = useState(0)
+  const {identificador}=useSelector(state=>state.user)
+  
   const openModalPremios = () => {
     setOpenModalPremios(true);
   };
@@ -52,20 +61,94 @@ function AdminPuntos() {
 
   const fetchSolicitudes = async () => {
     try {
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/puntos/solicitud/${user.identificador}`
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
       );
-      const data = await response.json();
-      setDataClientesFactura(data);
-      console.log("data recibos", data);
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const solicitudesRef = collection(db, "solicitudes", uidUser, "historial");
+      const solicitudesQuery = query(solicitudesRef);
+
+      const unsubscribe = onSnapshot(solicitudesQuery, (snapshot) => {
+        const solicitudes = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          data.id = doc.id;
+          if(data.estado==="Solicitado"){
+            solicitudes.push(data);
+          }
+         
+        });
+
+        setDataClientesFactura(solicitudes);
+        console.log("data recibos", solicitudes);
+      });
+
+      return () => unsubscribe();
     } catch (error) {
-      console.error("Error al obtener los datos:", error);
+      console.error("Error al obtener los datos:", error.message);
     }
   };
 
+
+  const getConfig = async () => {
+    try {
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+  
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+  
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+  
+      const userDocRef = doc(db, "usuarios", uidUser);
+  
+      const unsubscribe = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const valorMinimo = data.valorMinimo || 0;
+          const PuntosporValor = data.PuntosporValor || 0;
+  
+          setValorMinimo(valorMinimo);
+          setPuntosporValor(PuntosporValor);
+  
+          console.log("data recibos", data);
+        } else {
+          console.error("Documento no encontrado");
+        }
+      });
+  
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error al obtener los datos:", error.message);
+    }
+  };
+  
+
+
   useEffect(() => {
+    getConfig()
     fetchSolicitudes();
-  }, []);
+  }, [user]);
 
   const handleSubmitPuntos = async (e) => {
     e.preventDefault();
@@ -77,7 +160,7 @@ function AdminPuntos() {
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/config/set/valores/${user.identificador}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/config/set/valores/${identificador}`,
         {
           method: "PUT",
           headers: {
@@ -93,7 +176,7 @@ function AdminPuntos() {
 
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
-        const result = await response.json();
+        const result = await response.text();
         setAlertMessage("Puntos configurados correctamente");
         setShowAlert(true);
         setCompraValor("");
@@ -157,11 +240,14 @@ function AdminPuntos() {
     const clienteAprobado = {
       estado: "Aprobado",
       nombre: cliente.nombre,
+      puntos: 500
     };
+
+    console.info("Cliente", cliente.id, cliente.numerowp)
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${user.identificador}/vOFJzsIypaHZWUYe7SYS/3235698785`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${identificador}/${cliente.id}/${cliente.numerowp}`,
         {
           method: "PUT",
           headers: {
@@ -289,12 +375,12 @@ function AdminPuntos() {
                 <FaCoins className="text-yellow-400" />
               </div>
               <p className="text-yellow-400 font-semibold">
-                {user.valorMinimo === ""
+                {valorMinimo === ""
                   ? "0"
-                  : Number(user.valorMinimo).toLocaleString("es-CO", {
-                      style: "currency",
-                      currency: "COP",
-                    })}
+                  : Number(valorMinimo).toLocaleString("es-CO", {
+                    style: "currency",
+                    currency: "COP",
+                  })}
               </p>
             </div>
 
@@ -571,14 +657,14 @@ function AdminPuntos() {
           onClose={closeEditModal}
         >
           {selectCliente && (
-            <div className="grid grid-cols-2 gap-10">
+            <div className="grid grid-cols-2 gap-10 item-center">
               <div className="flex justify-center flex-col">
                 <img className="h-96 w-86" src={`${selectCliente.recibo}`} />
               </div>
-              <div className="flex flex-col gap-6">
-                <p className="font-semibold text-title">
+              <div className="flex flex-col gap-6 place-content-center item-center">
+                {/* <p className="font-semibold text-title">
                   ID Cliente: {selectCliente.id}
-                </p>
+                </p> */}
                 <p className="text-lg font-medium">
                   Nombre Cliente: {selectCliente.nombre}
                 </p>

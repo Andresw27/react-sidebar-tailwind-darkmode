@@ -8,7 +8,7 @@ const Alert = ({ message, onClose, duration = 1000 }) => {
     setIsShowing(true);
     const timer = setTimeout(() => {
       setIsShowing(false);
-      setTimeout(onClose, 1000); // Ajusta el tiempo de ocultamiento
+      setTimeout(onClose, 2000); // Ajusta el tiempo de ocultamiento
     }, duration);
 
     return () => clearTimeout(timer);

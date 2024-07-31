@@ -5,30 +5,13 @@ import app from "../firebase-config";
 import Logo from "../assets/jeicy.png";
 import { auth } from "../firebase-config";
 import { UserContext } from "../UserContext";
+import { useSelector } from "react-redux";
 function PerfilUser() {
   const [users, setUsers] = useState([]);
-  const user = useContext(UserContext)
+  const {nombreEmpresa,correo,password,nombre,telefono,direccion,nit}=useSelector(state=>state.user);
+  
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const userAuth = auth.currentUser;
-        console.log("userAuth", userAuth);
-
-        if (userAuth) {
-          const userData = await fetchUserData(userAuth.uid);
-          console.log("userDatassss", userData);
-          setUsers(userData);
-        } else {
-          console.log("No hay usuario autenticado.");
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
-    };
-
-    fetchData();
-  }, [auth]);
+ 
   return (
     <Layout>
       <div className="my-3 mx-10">
@@ -59,7 +42,7 @@ function PerfilUser() {
             />
             <div>
               <p className="text-2xl  font-semibold mt-2 ">
-                {user.nombreEmpresa}
+                {nombreEmpresa}
               </p>
             </div>
           </div>
@@ -72,7 +55,7 @@ function PerfilUser() {
 
               <div>
                 <p className="text-1xl text-zinc-400 dark:text-white">
-                  {user.correo}
+                  {correo}
                 </p>
               </div>
             </div>
@@ -82,7 +65,7 @@ function PerfilUser() {
                   Password
                 </p>
                 <p className="text-1xl text-zinc-400 dark:text-white">
-                  {user.password}
+                  {password}
                 </p>
                 <div>
                   {/* <button
@@ -227,7 +210,7 @@ function PerfilUser() {
                 id="namepersonal"
                 disabled
                 type="text"
-                value={user.nombre}
+                value={nombre}
               />
             </div>
             <div className="md:w-1/2 px-3">
@@ -242,7 +225,7 @@ function PerfilUser() {
                 id="Lastname"
                 disabled
                 type="text"
-                value={user.nombreEmpresa}
+                value={nombreEmpresa}
               />
             </div>
           </div>
@@ -259,7 +242,7 @@ function PerfilUser() {
                 className="appearance-none block w-full bg-emerald-100 bg-opacity-30 backdrop-blur-sm   text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
                 disabled
                 type="text"
-                value={user.correo}
+                value={correo}
               />
             </div>
             <div className="md:w-full px-3">
@@ -275,7 +258,7 @@ function PerfilUser() {
                 type="email"
                 disabled
                 required
-                Value={user.telefono}
+                Value={telefono}
               />
             </div>
           </div>
@@ -292,7 +275,7 @@ function PerfilUser() {
                 id="timeZone"
                 disabled
                 type="text"
-                value={user.direccion}
+                value={direccion}
               />
             </div>
             <div className="md:w-full px-3">
@@ -308,7 +291,7 @@ function PerfilUser() {
                 type="number"
                 disabled
                 required
-                value={user.nit}
+                value={nit}
               />
             </div>
           </div>
