@@ -8,14 +8,20 @@ const Modal = ({
   nombre,
   accion,
   acciononClick,
-  conteTooltip
+  conteTooltip,
+  size = "fixed", 
+  Fondo = "none" ,
 }) => {
   if (!isOpen) return null;
 
+  const modalSizeClass =
+    size === "fixed" ? "w-4/5 h-4/5" : "w-auto h-auto max-w-full max-h-full"; 
+ const fondo =
+    Fondo==="none" ? "fixed z-50 inset-0 bg-gray-800 bg-opacity-10":" fixed z-50 inset-0 bg-gray-800 bg-opacity-50";
   return (
-    <div className="fixed z-50 inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
-      <div className="bg-white p-4 rounded shadow-lg ">
-        <div className="flex justify-between">
+    <div className={`fixed z-50 inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center ${fondo}`}>
+      <div className={`bg-white p-4 rounded shadow-lg overflow-y-auto ${modalSizeClass}`}>
+        <div className="flex justify-between gap-20">
           <div className="flex justify-center items-center gap-2">
             <p className="text-xl font-semibold text-slate-500">{nombre}</p>
             {accion && (
@@ -37,8 +43,9 @@ const Modal = ({
             x
           </button>
         </div>
-
-        {children}
+        <div className="">
+          {children}
+        </div>
       </div>
     </div>
   );

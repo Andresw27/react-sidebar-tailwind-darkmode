@@ -23,9 +23,9 @@ function Clientes() {
       );
       const data = await response.json();
       setDataClientes(data.clientes);
-      console.log("la data essss", data.clientes);
+      // console.log("la data essss", data.clientes);
     } catch (error) {
-      console.error("Error al obtener los datos:", error);
+      // console.error("Error al obtener los datos:", error);
     } finally {
       setIsLoading(false); // Finaliza la carga
     }

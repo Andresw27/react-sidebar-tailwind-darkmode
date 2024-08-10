@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Transition } from '@headlessui/react';
 
-const Alert = ({ message, onClose, duration = 1000 }) => {
+const Alert = ({ message, onClose, duration = 1000, type = 'success' }) => {
   const [isShowing, setIsShowing] = useState(false);
 
   useEffect(() => {
@@ -14,6 +14,10 @@ const Alert = ({ message, onClose, duration = 1000 }) => {
     return () => clearTimeout(timer);
   }, [onClose, duration]);
 
+  // Define las clases de color según el tipo de alerta
+  const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+  const hoverBgColor = type === 'success' ? 'bg-green-700' : 'bg-red-700';
+
   return (
     <Transition
       show={isShowing}
@@ -24,10 +28,10 @@ const Alert = ({ message, onClose, duration = 1000 }) => {
       leaveFrom="translate-x-0 opacity-100"
       leaveTo="translate-x-full opacity-0"
     >
-      <div className="fixed z-50 bottom-4 right-4 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+      <div className={`fixed z-50 bottom-4 right-4 ${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2`}>
         <span>{message}</span>
         <button
-          className="ml-4 bg-green-800 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+          className={`ml-4 ${hoverBgColor} hover:${hoverBgColor} text-white font-bold py-1 px-2 rounded`}
           onClick={() => setIsShowing(false)}
         >
           X

@@ -9,16 +9,16 @@ const fetchUserData = async (uid) => {
     const userSnapshot = await getDoc(userDoc);
     if (userSnapshot.exists()) {
       const userData = userSnapshot.data();
-      console.log('userDatasss', userData); 
+      // console.log('userDatasss', userData); 
 
       return userData;
       
     } else {
-      console.log("No such document!");
+      // console.log("No such document!");
       return null;
     }
   } catch (error) {
-    console.error("Error fetching user data: ", error);
+    // console.error("Error fetching user data: ", error);
     throw error;
   }
 };

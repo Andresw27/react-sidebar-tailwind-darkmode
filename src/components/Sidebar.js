@@ -2,8 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Tooltip } from "@material-tailwind/react";
 import { BsArrowLeftCircle } from "react-icons/bs";
-import { FaHome, FaHamburger, FaUser } from "react-icons/fa";
-import { RiUserSettingsFill } from "react-icons/ri";
+import { FaHome, FaHamburger, FaUser, FaHandPointRight, FaCubes } from "react-icons/fa";
 import { auth } from "../firebase-config";
 import Logo from "../assets/jeicy.png";
 import Logosmall from "../assets/jeicyy.png";
@@ -12,25 +11,23 @@ import HamburgerButton from "./HamburgerMenuButton/HamburgerButton";
 import { UserContext } from "../UserContext";
 
 const Sidebar = () => {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [subMenuOpen, setSubMenuOpen] = useState(null);
   const location = useLocation();
   const [userRole, setUserRole] = useState(null);
-  const [newOrder, setNewOrder] = useState(false); // Estado para el nuevo pedido
-const user =useContext(UserContext)
+  const [userPaquete, setUserPaquete] = useState(null);
+  const user = useContext(UserContext);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const userAuth = auth.currentUser;
-        console.log("userAuth", userAuth);
-
         if (userAuth) {
           const userData = await fetchUserData(userAuth.uid);
-          console.log("userdatasidebar", userData);
           setUserRole(userData.role);
-        } else {
-          console.log("No hay usuario autenticado.");
+          setUserPaquete(userData.paquete);
+          
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -40,48 +37,56 @@ const user =useContext(UserContext)
     fetchData();
   }, []);
 
-  
   const Menus = [
     {
-      title: "Inicio",
-      path: "/inicio",
-      src: <FaHome />,
-      activeSrc: <FaHome />,
-      roles: ["Usuario"], 
-    },
-    {
-      title: "Productos",
-      path: "/productos",
-      src: <FaHamburger />,
-      activeSrc: <FaHamburger />,
-      roles: ["Usuario"], 
-
+      title: "Jeicy Pedidos",
+      path: "#",
+      src: <FaCubes />,
+      activeSrc: <FaCubes />,
+      roles: ["Usuario"],
+      paquete: ["JeicyPedidos", "JeicyFull"],
+      subMenus: [
+        {
+          title: "Ordenes",
+          path: "/Ordenes",
+          src: <FaHome />,
+          activeSrc: <FaHome />,
+          roles: ["Usuario"],
+        },
+        {
+          title: "Productos",
+          path: "/productos",
+          src: <FaHamburger />,
+          activeSrc: <FaHamburger />,
+          roles: ["Usuario"],
+        },
+      ],
     },
     {
       title: "Usuarios",
       path: "/users",
       src: <FaUser />,
       activeSrc: <FaUser />,
-      roles: ["admin"], 
+      roles: ["admin"],
     },
     {
-      title: "Clientes y Puntos",
+      title: "Jeicy Puntos",
       path: "#",
-      src: <RiUserSettingsFill />,
-      activeSrc: <RiUserSettingsFill />,
-      roles: ["Usuario"], 
-
+      src: <FaHandPointRight />,
+      activeSrc: <FaHandPointRight />,
+      roles: ["Usuario"],
+      paquete: ["JeicyPuntos","JeicyEspecial", "JeicyFull"],
       subMenus: [
         {
-          title: "Clientes",
-          path: "/clientes",
+          title: "Usuarios",
+          path: "/Usuarios",
         },
         {
-          title: "Administrar Puntos",
-          path: "/puntos",
+          title: "Solicitudes de puntos",
+           path:userPaquete === "JeicyEspecial" ? "/validarpuntos" : "/puntos",
         },
         {
-          title: "Redemir Puntos",
+          title: "Solicitudes de premios",
           path: "/redimirPuntos",
         },
       ],
@@ -98,10 +103,6 @@ const user =useContext(UserContext)
     }
   };
 
-  const handleSubMenuClick = () => {
-    if (mobileMenu) setMobileMenu(false); // Close mobile menu on subitem click
-  };
-
   const toggleSidebar = () => {
     setOpen(!open);
     if (open) setSubMenuOpen(null); // Close any open submenu when sidebar is closed
@@ -111,8 +112,8 @@ const user =useContext(UserContext)
     <>
       <div
         className={`${
-          open ? "w-60" : "w-fit"
-        } hidden sm:block relative h-screen duration-300 transition-all bg-white border-r border-gray-200 dark:border-gray-600 p-5 dark:bg-slate-800`}
+          open ? "w-72" : "w-fit"
+        } hidden sm:block relative  h-screen duration-300 transition-all bg-white border-r border-gray-200 dark:border-gray-600 p-5 dark:bg-slate-800`}
       >
         <BsArrowLeftCircle
           className={`${
@@ -120,7 +121,7 @@ const user =useContext(UserContext)
           } absolute text-3xl bg-white fill-slate-800 rounded-full cursor-pointer top-9 -right-4 dark:fill-gray-400 dark:bg-gray-800 transition-transform duration-300`}
           onClick={toggleSidebar}
         />
-        <Link to="/inicio">
+        <Link to="#">
           <div className={`flex ${open && "gap-x-4"} items-center`}>
             <img
               src={open ? Logo : Logosmall}
@@ -132,9 +133,11 @@ const user =useContext(UserContext)
           </div>
         </Link>
 
-        <ul className="pt-6">
+        <ul className="pt-4">
           {Menus.filter(
-            (menu) => !menu.roles || menu.roles.includes(userRole)
+            (menu) =>
+              (!menu.roles || menu.roles.includes(userRole)) &&
+              (!menu.paquete || menu.paquete.includes(userPaquete))
           ).map((menu, index) => (
             <div key={index}>
               <Link to={menu.path} onClick={() => handleMenuClick(menu)}>
@@ -189,7 +192,7 @@ const user =useContext(UserContext)
                     <Link
                       to={subMenu.path}
                       key={subIndex}
-                      onClick={handleSubMenuClick}
+                      onClick={() => mobileMenu && setMobileMenu(false)}
                     >
                       <li
                         className={`flex items-center gap-x-2 p-2 text-base font-normal rounded-lg cursor-pointer dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transform hover:scale-105 transition duration-100 ease-in-out
@@ -232,7 +235,9 @@ const user =useContext(UserContext)
           } absolute z-50 flex-col items-center self-end py-8 mt-16 space-y-6 font-bold sm:w-auto left-6 right-6 dark:text-white bg-gray-50 dark:bg-slate-800 drop-shadow-md rounded-xl`}
         >
           {Menus.filter(
-            (menu) => !menu.roles || menu.roles.includes(userRole)
+            (menu) =>
+              (!menu.roles || menu.roles.includes(userRole)) &&
+              (!menu.paquete || menu.paquete.includes(userPaquete))
           ).map((menu, index) => (
             <div key={index}>
               <Link to={menu.path} onClick={() => handleMenuClick(menu)}>
@@ -251,15 +256,14 @@ const user =useContext(UserContext)
                     <Link
                       to={subMenu.path}
                       key={subIndex}
-                      onClick={handleSubMenuClick}
+                      onClick={() => mobileMenu && setMobileMenu(false)}
                     >
                       <li
-                        className={`p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700
-                          ${
-                            location.pathname === subMenu.path
-                              ? "bg-slate-900 text-white"
-                              : ""
-                          }`}
+                        className={`p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                          location.pathname === subMenu.path
+                            ? "bg-gray-200 dark:bg-gray-700"
+                            : ""
+                        }`}
                       >
                         {subMenu.title}
                       </li>

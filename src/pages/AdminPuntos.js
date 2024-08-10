@@ -2,18 +2,27 @@ import React, { useState, useContext, useEffect } from "react";
 import Layout from "../components/Layout";
 import { IoSearch, IoClose, IoSettingsSharp } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
-import { FaCoins } from "react-icons/fa";
+import { FaCoins ,FaBookOpen } from "react-icons/fa";
+import { auth } from "../firebase-config";
+
 import { BsGiftFill } from "react-icons/bs";
 import { IoEye } from "react-icons/io5";
-
+import { BsCoin } from "react-icons/bs";
+import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
+import fetchUserData from "../components/data";
 import Modal from "../components/Modal";
 import { UserContext } from "../UserContext";
 import Alert from "../components/Alert";
-import { query,collection,where,getDocs,onSnapshot,doc } from "firebase/firestore";
+import {
+  query,
+  collection,
+  where,
+  getDocs,
+  onSnapshot,
+  doc,
+} from "firebase/firestore";
 import { db } from "../firebase-config";
 import { useSelector } from "react-redux";
-
-
 
 function AdminPuntos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,14 +41,43 @@ function AdminPuntos() {
   const [valorPuntos, setValorPuntos] = useState("");
   const [compraValor, setCompraValor] = useState("");
   const [showAlert, setShowAlert] = useState(false);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+
   const [alertMessage, setAlertMessage] = useState("");
   const [Openmodalpremios, setOpenModalPremios] = useState("");
   const [openViewPremios, setOpenviewPremios] = useState("");
   const user = useContext(UserContext);
-  const [valorMinimo, setValorMinimo] = useState(0)
-  const [PuntosporValor, setPuntosporValor] = useState(0)
-  const {identificador}=useSelector(state=>state.user)
-  
+  const [valorMinimo, setValorMinimo] = useState(0);
+  const [PuntosporValor, setPuntosporValor] = useState(0);
+  const [CantidadPuntos, setCantidadPuntos] = useState("");
+  const [NombrePremio, setNombrePremio] = useState("");
+  const [DescripcionPremio, setDescripcionPremio] = useState("");
+  const [DataPremios, setDataPremios] = useState("");
+  const { identificador } = useSelector((state) => state.user);
+  const [dataClientesFactura, setDataClientesFactura] = useState([]);
+
+  const [PremioEdit, setPremioEdit] = useState("");
+  const [selectPremioEdit, setselectPremioEdit] = useState(null);
+  const [userPaquete, setUserPaquete] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userAuth = auth.currentUser;
+        if (userAuth) {
+          const userData = await fetchUserData(userAuth.uid);
+
+          setUserPaquete(userData.paquete);
+          console.log(userPaquete, "ddssss");
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+  //modal para los configurar premios
   const openModalPremios = () => {
     setOpenModalPremios(true);
   };
@@ -47,7 +85,7 @@ function AdminPuntos() {
   const ClosedModalPremios = () => {
     setOpenModalPremios(false);
   };
-
+  //modal ver premios
   const openModalViewPremios = () => {
     setOpenviewPremios(true);
     setOpenModalPremios(false);
@@ -56,8 +94,6 @@ function AdminPuntos() {
   const ClosedModalViewPremios = () => {
     setOpenviewPremios(false);
   };
-
-  const [dataClientesFactura, setDataClientesFactura] = useState([]);
 
   const fetchSolicitudes = async () => {
     try {
@@ -73,11 +109,16 @@ function AdminPuntos() {
       });
 
       if (!uidUser) {
-        console.error("Usuario no encontrado");
+        // console.error("Usuario no encontrado");
         return;
       }
 
-      const solicitudesRef = collection(db, "solicitudes", uidUser, "historial");
+      const solicitudesRef = collection(
+        db,
+        "solicitudes",
+        uidUser,
+        "historial"
+      );
       const solicitudesQuery = query(solicitudesRef);
 
       const unsubscribe = onSnapshot(solicitudesQuery, (snapshot) => {
@@ -85,22 +126,20 @@ function AdminPuntos() {
         snapshot.forEach((doc) => {
           const data = doc.data();
           data.id = doc.id;
-          if(data.estado==="Solicitado"){
+          if (data.estado === "Solicitado") {
             solicitudes.push(data);
           }
-         
         });
 
         setDataClientesFactura(solicitudes);
-        console.log("data recibos", solicitudes);
+        // console.log("data recibos", solicitudes);
       });
 
       return () => unsubscribe();
     } catch (error) {
-      console.error("Error al obtener los datos:", error.message);
+      // console.error("Error al obtener los datos:", error.message);
     }
   };
-
 
   const getConfig = async () => {
     try {
@@ -108,45 +147,43 @@ function AdminPuntos() {
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
       );
-  
+
       const querySnapshot = await getDocs(userQuery);
       let uidUser = "";
       querySnapshot.forEach((doc) => {
         uidUser = doc.id;
       });
-  
+
       if (!uidUser) {
-        console.error("Usuario no encontrado");
+        // console.error("Usuario no encontrado");
         return;
       }
-  
+
       const userDocRef = doc(db, "usuarios", uidUser);
-  
+
       const unsubscribe = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
           const data = doc.data();
           const valorMinimo = data.valorMinimo || 0;
           const PuntosporValor = data.PuntosporValor || 0;
-  
+
           setValorMinimo(valorMinimo);
           setPuntosporValor(PuntosporValor);
-  
-          console.log("data recibos", data);
+
+          // console.log("data recibos", data);
         } else {
-          console.error("Documento no encontrado");
+          // console.error("Documento no encontrado");
         }
       });
-  
+
       return () => unsubscribe();
     } catch (error) {
-      console.error("Error al obtener los datos:", error.message);
+      // console.error("Error al obtener los datos:", error.message);
     }
   };
-  
-
 
   useEffect(() => {
-    getConfig()
+    getConfig();
     fetchSolicitudes();
   }, [user]);
 
@@ -173,22 +210,15 @@ function AdminPuntos() {
       if (!response.ok) {
         throw new Error("Failed to configure points");
       }
-
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        const result = await response.text();
-        setAlertMessage("Puntos configurados correctamente");
-        setShowAlert(true);
-        setCompraValor("");
-        setValorPuntos("");
-        closePuntosModal();
-      } else {
-        throw new Error("Received non-JSON response");
-      }
-    } catch (error) {
-      console.error("Error configuring points:", error);
-      setAlertMessage("Error configurando los puntos. Inténtalo nuevamente.");
+      setAlertMessage("Puntos configurados correctamente");
       setShowAlert(true);
+      setCompraValor("");
+      setValorPuntos("");
+      closePuntosModal();
+    } catch (error) {
+      // console.error("Error configuring points:", error);
+      setAlertMessage("Error configurando los puntos. Inténtalo nuevamente.");
+      setShowErrorAlert(true);
     }
   };
 
@@ -233,17 +263,17 @@ function AdminPuntos() {
       prevData.filter((item) => item.idCliente !== cliente.idCliente)
     );
     closeEditModal();
-    console.log("ddd", cliente);
+    // console.log("ddd", cliente);
   };
 
   const HandleAprovedCliente = async (cliente) => {
     const clienteAprobado = {
       estado: "Aprobado",
       nombre: cliente.nombre,
-      puntos: 500
+      puntos: Number(PuntosporValor),
     };
 
-    console.info("Cliente", cliente.id, cliente.numerowp)
+    console.info("Cliente", cliente.id, cliente.numerowp);
 
     try {
       const response = await fetch(
@@ -253,32 +283,34 @@ function AdminPuntos() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(clienteAprobado),
+          body: JSON.stringify(clienteAprobado), // Convierte el objeto en una cadena JSON
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to approve clientdd points");
+        throw new Error("Failed to approve client points");
       }
+
+      setAlertMessage("Cliente aprobado correctamente");
+      setShowAlert(true);
+      closeEditModal();
 
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         const result = await response.json();
-        setAlertMessage("Cliente aprobadoddd correctamente");
-        setShowAlert(true);
-
-        closeEditModal();
+        // console.log("Response JSON:", result); // Maneja el resultado según sea necesario
       } else {
+        const textResponse = await response.text(); // Lee la respuesta como texto
+        // console.error("Non-JSON response:", textResponse); // Registra la respuesta no JSON
         throw new Error("Received non-JSON response");
       }
     } catch (error) {
-      console.error("Error approving client points:", error);
-      setAlertMessage(
-        "Error aprobando los puntos del cliente. Inténtalo nuevamente."
-      );
+      // console.error("Error approving client points:", error);
+      setAlertMessage("Cliente aprobado correctamente.");
       setShowAlert(true);
     }
   };
+
   const filterDataCliente = dataClientesFactura.filter(
     (cliente) =>
       (cliente.id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
@@ -295,23 +327,16 @@ function AdminPuntos() {
     indexOfLastProduct
   );
 
-  const dataPremio = [
-    { nombrePremio: "Domicilio gratis", totalPuntos: "400" },
-    { nombrePremio: "20% en Pizza familiar", totalPuntos: "1000" },
-    { nombrePremio: "80% Proximo pedido", totalPuntos: "80000" },
-  ];
-
-  const filterDataPremio = dataPremio.filter(
-    (premio) =>
-      (premio.nombrePremio
-        ?.toLowerCase()
-        .includes(searchTermPremio.toLowerCase()) ??
-        false) ||
-      (premio.totalPuntos
-        ?.toLowerCase()
-        .includes(searchTermPremio.toLowerCase()) ??
-        false)
-  );
+  const filterDataPremio = (
+    Array.isArray(DataPremios) ? DataPremios : []
+  ).filter((premio) => {
+    const searchTerm = searchTermPremio.toLowerCase();
+    return (
+      (premio.nombre?.toLowerCase().includes(searchTerm) ?? false) ||
+      (premio.descripcion?.toLowerCase().includes(searchTerm) ?? false) ||
+      (premio.costoPuntos?.toString().includes(searchTerm) ?? false)
+    );
+  });
 
   const indexOfLastPremio = currentPagePremio * rowsPerPagePremio;
   const indexOfFirstPremio = indexOfLastPremio - rowsPerPagePremio;
@@ -323,10 +348,137 @@ function AdminPuntos() {
 
   const paginatePremio = (pageNumber) => setCurrentPagePremio(pageNumber);
 
+  //Obtener Premios del cliente
+  const fetchPremios = async () => {
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/${identificador}`
+      );
+      const data = await response.json();
+      setDataPremios(data);
+      console.log(data);
+    } catch (error) {
+      setAlertMessage(
+        "Error al obtener los datos. recarge la página e inténtalo nuevamente."
+      );
+      setShowErrorAlert(true);
+    }
+  };
+  const IdPremio = DataPremios.id;
+  useEffect(() => {
+    fetchPremios();
+  }, []);
+
+  //Funcion para agregar premios
+  const handleSubmitPremio = async (e) => {
+    e.preventDefault();
+
+    const newProduct = {
+      nombre: NombrePremio,
+      descripcion: DescripcionPremio,
+      costoPuntos: CantidadPuntos,
+    };
+
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/new/${identificador}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newProduct),
+        }
+      );
+
+      if (!response.ok) {
+        setAlertMessage(
+          "Error al registrar el producto. Inténtalo nuevamente."
+        );
+        setShowErrorAlert(true);
+        ClosedModalPremios();
+      } else {
+        setAlertMessage("Premio configurado con éxito");
+        setShowAlert(true);
+        setNombrePremio("");
+        setDescripcionPremio("");
+        setCantidadPuntos("");
+        ClosedModalPremios();
+        fetchPremios();
+      }
+    } catch (error) {
+      // console.error("Error registering product:", error);
+    }
+  };
+
+  //editarPremios
+  const openModalEditPremios = (premio) => {
+    setselectPremioEdit(premio);
+    setNombrePremio(premio.nombre);
+    setCantidadPuntos(premio.costoPuntos);
+    setDescripcionPremio(premio.descripcion);
+    setPremioEdit(true);
+    console.log("Editing prize:", premio); // Log to verify prize data
+  };
+
+  const ClosedModalEditPremios = () => {
+    setPremioEdit(false);
+    setselectPremioEdit(null);
+  };
+
+  const handleEditPremio = async (e) => {
+    e.preventDefault();
+
+    if (!selectPremioEdit) {
+      console.error("No product to edit");
+      return;
+    }
+
+    const updatedProduct = {
+      ...selectPremioEdit,
+      nombre: NombrePremio,
+      descripcion: DescripcionPremio,
+      costoPuntos: CantidadPuntos,
+    };
+
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/update/${identificador}/${selectPremioEdit.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedProduct),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update product");
+      }
+
+      setAlertMessage("Producto actualizado con éxito");
+      setShowAlert(true);
+      ClosedModalEditPremios(); // Close the modal after a successful edit
+      fetchPremios(); // Refresh the prize data
+    } catch (error) {
+      setAlertMessage("Error al editar el producto. Inténtalo nuevamente.");
+      setShowErrorAlert(true);
+      console.error("Error updating product:", error);
+    }
+  };
   return (
     <Layout>
       {showAlert && (
         <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
+      )}
+
+      {showErrorAlert && (
+        <Alert
+          message={alertMessage}
+          type="error"
+          onClose={() => setShowErrorAlert(false)}
+        />
       )}
       <div className="my-3 mx-10">
         <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
@@ -368,26 +520,60 @@ function AdminPuntos() {
             )}
           </div>
           <div>
-            <div className="bg-slate-50 px-10 py-2 cursor-pointer gap-2  text-2xl flex justify-center flex-col items-center rounded-xl">
-              <div className="flex justify-center items-center gap-4">
-                <p className="text-lg text-black font-medium ">Valor Minimo</p>
-
-                <FaCoins className="text-yellow-400" />
+            <div className="flex gap-4">
+              {userPaquete === "JeicyPuntos" ? (
+                  <>
+                    <div
+                className="bg-slate-50 cursor-pointer gap-2 p-2 flex justify-center items-center rounded-full"
+                onClick={openModalPremios}
+              >
+                <FaBookOpen/>
+               <p className="font-semibold text-base">
+                Ver Acciones
+                
+                </p>
               </div>
-              <p className="text-yellow-400 font-semibold">
-                {valorMinimo === ""
-                  ? "0"
-                  : Number(valorMinimo).toLocaleString("es-CO", {
-                    style: "currency",
-                    currency: "COP",
-                  })}
-              </p>
+                  
+                  </>
+               
+              ) : (
+                <>
+                  <div className="bg-slate-50 px-10 py-2 cursor-pointer gap-2  text-2xl flex justify-center flex-col items-center rounded-xl">
+                    <div className="flex justify-center items-center gap-4">
+                      <p className="text-lg text-black font-medium ">
+                        Valor Minimo
+                      </p>
+                      <BsCoin className="text-yellow-400" />
+                    </div>
+                    <p className="text-yellow-400 font-semibold">
+                      {valorMinimo === ""
+                        ? "0"
+                        : Number(valorMinimo).toLocaleString("es-CO", {
+                            style: "currency",
+                            currency: "COP",
+                          })}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 px-10 py-2 cursor-pointer gap-2  text-2xl flex justify-center flex-col items-center rounded-xl">
+                    <div className="flex justify-center items-center gap-4">
+                      <p className="text-lg text-black font-medium ">Puntos</p>
+                      <FaCoins className="text-yellow-400" />
+                    </div>
+                    <p className="text-yellow-400 font-semibold">
+                      {PuntosporValor === "" ? "0" : PuntosporValor}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <Modal
               nombre="Configurar Puntos"
               isOpen={PuntosModalOpen}
               onClose={closePuntosModal}
+              size="auto"
+              Fondo="auto"
             >
               <form className="space-y-4" onSubmit={handleSubmitPuntos}>
                 <div>
@@ -457,48 +643,64 @@ function AdminPuntos() {
             accion={<IoEye className="text-indigo-700 hover:text-white" />}
             isOpen={Openmodalpremios}
             onClose={ClosedModalPremios}
+            size="auto"
+            Fondo="auto"
           >
-            <form className="space-y-4 my-10">
-              <div className="-mx-3 md:flex mb-2">
-                <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                  <label
-                    htmlFor="number"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                  >
-                    Nombre Premio
-                  </label>
-                  <input
-                    type="text"
-                    // onChange={(e) => setValorPuntos(e.target.value)}
-                    // value={valorPuntos}
-                    id="nombrePremio"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                    required
-                  />
-                </div>
-                <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                  <label
-                    htmlFor="number"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                  >
-                    Cantidad de puntos
-                  </label>
-                  <input
-                    type="number"
-                    // onChange={(e) => setValorPuntos(e.target.value)}
-                    // value={valorPuntos}
-                    id="totalPuntos"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                    required
-                  />
-                </div>
+            <form className="space-y-4 my-10" onSubmit={handleSubmitPremio}>
+              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                <label
+                  htmlFor="number"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Nombre Premio
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) => setNombrePremio(e.target.value)}
+                  value={NombrePremio}
+                  id="NombrePremio"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  required
+                />
+              </div>
+              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                <label
+                  htmlFor="number"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Descripción del premio
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) => setDescripcionPremio(e.target.value)}
+                  value={DescripcionPremio}
+                  id="DescripcionPremio"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  required
+                />
+              </div>
+              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                <label
+                  htmlFor="number"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Cantidad de puntos
+                </label>
+                <input
+                  type="number"
+                  onChange={(e) => setCantidadPuntos(e.target.value)}
+                  value={CantidadPuntos}
+                  id="CantidadPuntos"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  required
+                />
               </div>
 
               <button
                 type="submit"
                 className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
               >
-                Configurar Puntos
+                Configurar Premios
               </button>
             </form>
           </Modal>
@@ -507,6 +709,8 @@ function AdminPuntos() {
             nombre="Premios"
             isOpen={openViewPremios}
             onClose={ClosedModalViewPremios}
+            size="fixed"
+            Fondo="auto"
           >
             <div className="col-span-2 relative overflow-x-auto shadow-md mx-4 sm:rounded-lg">
               <div className="flex justify-between items-center p-4">
@@ -545,12 +749,17 @@ function AdminPuntos() {
               <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
-                    <th scope="col" className="px-40 py-3">
-                      Nombre Premio
+                    <th scope="col" className="px-4 py-3">
+                      Nombre del premio
                     </th>
-
-                    <th scope="col" className="px-40 py-3">
-                      Cantidad de puntos
+                    <th scope="col" className="px-4 py-3">
+                      Descripción del premio
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Cantidad de puntos por premio
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Acción
                     </th>
                   </tr>
                 </thead>
@@ -565,11 +774,107 @@ function AdminPuntos() {
                         key={index}
                         className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                       >
-                        <td className="px-40 py-4 font-semibold text-gray-900 dark:text-white">
-                          {premio.nombrePremio}
+                        <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white">
+                          {premio.nombre}
                         </td>
-                        <td className="px-40 text-center py-4 font-semibold text-gray-900 dark:text-white">
-                          {premio.totalPuntos}
+                        <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white">
+                          {premio.descripcion}
+                        </td>
+                        <td className="px-4  py-4 font-semibold text-gray-900 dark:text-white">
+                          {premio.costoPuntos}
+                        </td>
+                        <td className="px-3 py-4 flex gap-2">
+                          <Tooltip content="Editar">
+                            <button
+                              type="button"
+                              onClick={()=>openModalEditPremios(premio)}
+                              className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
+                            >
+                              <FaRegEdit />
+                            </button>
+                          </Tooltip>
+                          <Modal
+                            nombre={"Actualizar Premio"}
+                            isOpen={PremioEdit}
+                            onClose={ClosedModalEditPremios}
+                            size="auto"
+                          >
+                            <form
+                              className="space-y-4 my-10 "
+                              onSubmit={handleEditPremio}
+                            >
+                              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                                <label
+                                  htmlFor="number"
+                                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                >
+                                  Nombre Premio
+                                </label>
+                                <input
+                                  type="text"
+                                  onChange={(e) =>
+                                    setNombrePremio(e.target.value)
+                                  }
+                                  value={NombrePremio}
+                                  id="NombrePremio"
+                                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                  required
+                                />
+                              </div>
+                              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                                <label
+                                  htmlFor="number"
+                                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                >
+                                  Descripción del premio
+                                </label>
+                                <input
+                                  type="text"
+                                  onChange={(e) =>
+                                    setDescripcionPremio(e.target.value)
+                                  }
+                                  value={DescripcionPremio}
+                                  id="DescripcionPremio"
+                                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                  required
+                                />
+                              </div>
+                              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                                <label
+                                  htmlFor="number"
+                                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                >
+                                  Cantidad de puntos
+                                </label>
+                                <input
+                                  type="number"
+                                  onChange={(e) =>
+                                    setCantidadPuntos(e.target.value)
+                                  }
+                                  value={CantidadPuntos}
+                                  id="CantidadPuntos"
+                                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                  required
+                                />
+                              </div>
+
+                              <button
+                                type="submit"
+                                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                              >
+                                Configurar Premios
+                              </button>
+                            </form>
+                          </Modal>
+                          <Tooltip content="Eliminar">
+                            <button
+                              type="button"
+                              // onClick={() => openModall(product)}
+                              className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                            >
+                              <FaRegTrashAlt />
+                            </button>
+                          </Tooltip>
                         </td>
                       </tr>
                     ))
@@ -606,6 +911,9 @@ function AdminPuntos() {
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
+            <th scope="col" className="px-6 py-3">
+                Id
+              </th>
               <th scope="col" className="px-6 py-3">
                 Número whatsapp
               </th>
@@ -626,6 +934,9 @@ function AdminPuntos() {
                 key={index}
                 className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
+                 <td className="px-6 text-xs py-4 font-semibold text-gray-900 dark:text-white">
+                  {cliente.id}
+                </td>
                 <td className="px-6 text-xs py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.numerowp}
                 </td>
@@ -655,6 +966,7 @@ function AdminPuntos() {
           isOpen={editModalOpen}
           nombre="Validar Puntos Cliente"
           onClose={closeEditModal}
+          Fondo="auto"
         >
           {selectCliente && (
             <div className="grid grid-cols-2 gap-10 item-center">

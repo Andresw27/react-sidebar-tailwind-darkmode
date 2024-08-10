@@ -11,3 +11,22 @@
   @apply w-96; /* Tailwind classes */
   width: 324px; /* Custom width */
 }
+/* customScrollbar.css */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px; /* Ancho de la barra de desplazamiento vertical */
+  height: 8px; /* Altura de la barra de desplazamiento horizontal */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #ff0000; /* Color de fondo de la pista */
+  border-radius: 40px; /* Bordes redondeados */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ff0000; /* Color del pulgar */
+  border-radius: 40px; /* Bordes redondeados */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ff0000; /* Color del pulgar al pasar el cursor */
+}

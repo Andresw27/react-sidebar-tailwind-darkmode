@@ -4,6 +4,8 @@ import Modal from "../../components/Modal";
 import Alert from "../../components/Alert";
 import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
 import { Tooltip } from "@material-tailwind/react";
+import { MdDateRange } from "react-icons/md";
+import {  FaRegClock } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -38,7 +40,53 @@ function Users() {
   const [naceptado, setNaceptado] = useState("");
   const [ndistribucion, setNdistribucion] = useState("");
   const [nentregado, setNentregado] = useState("");
+  const [fecha, setFecha] = useState(new Date());
 
+  // Nombres de los meses en español
+  const nombresMeses = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+
+  // Función para actualizar la fecha y hora
+  const actualizarReloj = () => {
+    setFecha(new Date());
+  };
+
+  // Use effect para actualizar la fecha cada segundo
+  useEffect(() => {
+    const intervalo = setInterval(actualizarReloj, 1000);
+    return () => clearInterval(intervalo); // Limpiar el intervalo al desmontar el componente
+  }, []);
+
+  // Obtener partes de la fecha y hora
+  const dia = fecha.getDate();
+  const mes = fecha.getMonth();
+  const año = fecha.getFullYear();
+  let horas = fecha.getHours();
+  const minutos = fecha.getMinutes().toString().padStart(2, "0");
+  const segundos = fecha.getSeconds().toString().padStart(2, "0");
+
+  // Convertir a formato de 12 horas y AM/PM
+  const ampm = horas >= 12 ? "PM" : "AM";
+  horas = horas % 12;
+  horas = horas ? horas : 12; // El 0 debe ser 12
+  const horasFormateadas = horas.toString().padStart(2, "0");
+
+  // Formatear la fecha y la hora
+  const nombreMes = nombresMeses[mes];
+  const fechaCompleta = `${dia} de ${nombreMes} del año ${año}`;
+  const horaActual = `Hora Actual: ${horasFormateadas}:${minutos}:${segundos} ${ampm}`;
   const openModal = () => setModalOpen(true);
   const closeModal = () => setModalOpen(false);
   const togglePasswordVisibility = () => {
@@ -158,9 +206,6 @@ function Users() {
         console.error("Error response:", errorText);
         throw new Error(`Failed to updatssse product: ${response.status}`);
       }
-
-      const result = await response.json();
-      console.log("Product updated successfully:", result);
       setAlertMessage("Usuario actualizado con éxito");
       setShowAlert(true);
       closeEditModal();
@@ -295,10 +340,24 @@ function Users() {
         <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
       )}
 
-      <div className="my-3 mx-10">
+      <div className="my-3 mx-10 flex justify-between">
         <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
           Usuarios
         </p>
+        <div className="flex gap-8">
+            <div className="flex justify-center gap-2 items-center bg-slate-50  p-2 rounded-full">
+              <MdDateRange />
+              <p className="text-1xl text-gray-500 whitespace-nowrap">
+                {fechaCompleta}
+              </p>
+            </div>
+            <div className="flex justify-center gap-2 items-center bg-slate-50  p-2 rounded-full">
+              <FaRegClock />
+              <p className="text-1xl text-gray-500 whitespace-nowrap">
+                {horaActual}
+              </p>
+            </div>
+          </div>
       </div>
       <div className="col-span-2 relative overflow-x-auto shadow-md mx-4 sm:rounded-lg">
         <div className="flex justify-between items-center p-4">
@@ -323,6 +382,8 @@ function Users() {
             isOpen={isModalOpen}
             nombre="Añadir Nuevo Usuario"
             onClose={closeModal}
+            size="auto"
+
           >
             <div>
               <form className="space-y-4" onSubmit={submitHandler}>
@@ -339,6 +400,7 @@ function Users() {
                         className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
                         id="nombreUsuario"
                         type="text"
+                        required
                       />
                     </div>
                     <div className="md:w-1/2 px-3">
@@ -352,6 +414,7 @@ function Users() {
                         className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
                         id="nombreEmpresa"
                         type="text"
+                        required
                       />
                     </div>
                   </div>
@@ -368,6 +431,7 @@ function Users() {
                         className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
                         id="telefono"
                         type="number"
+                        required
                       />
                     </div>
                     <div className="md:w-full px-3">
@@ -381,6 +445,7 @@ function Users() {
                         className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
                         id="email"
                         type="text"
+                        required
                       />
                     </div>
                     <div className="md:w-full px-3">
@@ -394,6 +459,7 @@ function Users() {
                         className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
                         id="Nit"
                         type="number"
+                        required
                       />
                     </div>
                   </div>
@@ -409,6 +475,7 @@ function Users() {
                         className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 mb-3"
                         id="direccion"
                         type="text"
+                        required
                       />
                     </div>
                     <div className="md:w-1/2 px-3 mb-6 md:mb-0">
@@ -440,7 +507,7 @@ function Users() {
                           className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
                           id="Naceptado"
                           type="text"
-                          required
+                        
                         />
                       </div>
                     </div>
@@ -456,7 +523,7 @@ function Users() {
                           className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
                           id="Ndistribucion"
                           type="text"
-                          required
+                        
                         />
                       </div>
                     </div>
@@ -472,7 +539,7 @@ function Users() {
                           className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
                           id="Nentregado"
                           type="text"
-                          required
+                       
                         />
                       </div>
                     </div>
@@ -632,6 +699,7 @@ function Users() {
           isOpen={editModalOpen}
           nombre="Editar Usuario"
           onClose={closeEditModal}
+          size="auto"
         >
           <div>
             <form className="space-y-4" onSubmit={handleEditSubmit}>
@@ -766,7 +834,6 @@ function Users() {
                         value={naceptado}
                         onChange={(e) => setNaceptado(e.target.value)}
                         type="text"
-                        required
                       />
                     </div>
                   </div>
@@ -784,7 +851,7 @@ function Users() {
                         value={ndistribucion}
                         onChange={(e) => setNdistribucion(e.target.value)}
                         type="text"
-                        required
+                        
                       />
                     </div>
                   </div>
@@ -802,7 +869,6 @@ function Users() {
                         value={nentregado}
                         onChange={(e) => setNentregado(e.target.value)}
                         type="text"
-                        required
                       />
                     </div>
                   </div>
@@ -820,7 +886,7 @@ function Users() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         type={showPassword ? "text" : "password"}
-                        required
+                        
                       />
                       <span
                         className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"

@@ -34,7 +34,7 @@ function RedimirPuntos() {
       setSearchVisible(false);
     };
 
-   const dataPuntosredimir =[{idCliente:"01", nombreCliente:"jeferson", numerowp:"3234381041",puntos:"1000"}]
+   const dataPuntosredimir =[{idCliente:"45621", fecha:"9/08/2024",nombreCliente:"jeferson", numerowp:"3234381041",puntos:"1000", premio:"20% en koi koi" , estado:"Solicitado"}]
   
     const filteredPuntosRedimir = dataPuntosredimir.filter(
       (punto) =>
@@ -110,13 +110,22 @@ function RedimirPuntos() {
               Id Cliente
             </th>
             <th scope="col" className="px-6 py-3">
-              Nombre Cliente
+              Fecha
+            </th>
+            <th scope="col" className="px-6 py-3">
+              Nombre 
             </th>
             <th scope="col" className="px-6 py-3">
               Número Whatsapp
             </th>
             <th scope="col" className="px-6 py-3">
+              Premio
+            </th>
+            <th scope="col" className="px-6 py-3">
               Total Puntos
+            </th>
+            <th scope="col" className="px-6 py-3">
+              Estado
             </th>
             <th scope="col" className="px-6 py-3">
               Acción
@@ -138,13 +147,23 @@ function RedimirPuntos() {
                   {punto.idCliente}
                 </td>
                 <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                  {punto.fecha}
+                </td>
+                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                   {punto.nombreCliente}
                 </td>
                 <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
               {punto.numerowp}
                 </td>
                 <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+              {punto.premio}
+                </td>
+                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
               {punto.puntos}
+                </td>
+                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                <span className={punto.estado==="Solicitado" ? "bg-red-100 text-red-800 text-lg font-medium me-2 px-2.5 py-0.5 rounded dark:bg-red-900 dark:text-red-300" : "bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300"}> {punto.estado}</span>
+              
                 </td>
                 <td className="px-6 py-4 flex gap-2">
                   <Tooltip content="Canjear">

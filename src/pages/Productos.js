@@ -12,13 +12,14 @@ import { useSelector } from "react-redux";
 function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(6);
+  const [rowsPerPage] = useState(5);
   const [dataProductos, setDataProductos] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
   const [nombreProducto, setNombreProducto] = useState("");
   const [valorProducto, setValorProducto] = useState("");
   const [showAlert, setShowAlert] = useState(false); // Estado para mostrar la alerta
-  const [alertMessage, setAlertMessage] = useState(""); // Estado para el mensaje de la alerta
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [isModalOpenn, setIsModalOpenn] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null); // Estado para el producto seleccionado
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -72,9 +73,10 @@ function Productos() {
       );
       const data = await response.json();
       setDataProductos(data.productos);
-      console.log("la data sssssssdsdsdsdsdsdsdsd", data.productos);
     } catch (error) {
-      console.error("Error al obtener los datos:", error);
+      setAlertMessage("Error al obtener los datos. recarge la página e inténtalo nuevamente.");
+      setShowErrorAlert(true);
+      
     }
   };
 
@@ -103,11 +105,13 @@ function Productos() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to register product");
+        setAlertMessage("Error al registrar el producto. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+        closeModal();
       }
 
       const result = await response.json();
-      console.log("Product registered successfully:", result);
+      // console.log("Product registered successfully:", result);
       setAlertMessage("Producto añadido con éxito");
       setShowAlert(true);
       setNombreProducto("");
@@ -115,7 +119,7 @@ function Productos() {
       closeModal();
       fetchProductos();
     } catch (error) {
-      console.error("Error registering product:", error);
+      // console.error("Error registering product:", error);
     }
   };
 
@@ -131,7 +135,9 @@ function Productos() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to delete product");
+        setAlertMessage("Error al eliminar el producto. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+        closeModall();
       }
 
       setAlertMessage("Producto eliminado con éxito");
@@ -139,7 +145,7 @@ function Productos() {
       closeModall();
       fetchProductos();
     } catch (error) {
-      console.error("Error deleting product:", error);
+      // console.error("Error deleting product:", error);
     }
   };
   //editar produtcto funcion
@@ -148,7 +154,6 @@ function Productos() {
     setNombreProducto(product.nombre);
     setValorProducto(product.valor);
     setEditModalOpen(true);
-    console.log("Product to edit:", product);
   };
 
   const closeEditModal = () => {
@@ -162,17 +167,15 @@ function Productos() {
     e.preventDefault();
 
     if (!productToEdit) {
-      console.error("No product to edit");
+      // console.error("No product to edit");
       return;
     }
-    console.log("efe", productToEdit);
     const updatedProduct = {
       ...productToEdit,
       nombre: nombreProducto,
       precio: valorProducto,
     };
 
-    console.log("Updated product payload:", JSON.stringify(updatedProduct));
 
     try {
       const response = await fetch(
@@ -187,19 +190,20 @@ function Productos() {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-        throw new Error(`Failed to updatssse product: ${response.status}`);
+        setAlertMessage("Error al editar el producto. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+        closeEditModal();
+
       }
 
       const result = await response.json();
-      console.log("Product updated successfully:", result);
+      // console.log("Product updated successfully:", result);
       setAlertMessage("Producto actualizado con éxito");
       setShowAlert(true);
       closeEditModal();
       fetchProductos();
     } catch (error) {
-      console.error("Error updating product:", error);
+      // console.error("Error updating product:", error);
     }
   };
 
@@ -207,6 +211,14 @@ function Productos() {
     <Layout>
       {showAlert && (
         <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
+      )}
+      
+      {showErrorAlert && (
+        <Alert
+          message={alertMessage}
+          type="error"
+          onClose={() => setShowErrorAlert(false)}
+        />
       )}
 
       <div className="my-3 mx-10">
@@ -263,9 +275,12 @@ function Productos() {
             isOpen={isModalOpen}
             nombre="Añadir Nuevo Producto"
             onClose={closeModal}
+            size="auto"
+            Fondo="auto"
           >
             <div>
               <form className="space-y-4" onSubmit={handleSubmit}>
+                
                 <div>
                   <label
                     htmlFor="text"
@@ -279,7 +294,7 @@ function Productos() {
                     value={nombreProducto}
                     onChange={(e) => setNombreProducto(e.target.value)}
                     id="nombreProducto"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                     placeholder="Nombre producto"
                     required
                   />
@@ -376,6 +391,9 @@ function Productos() {
           isOpen={editModalOpen}
           nombre="Editar Producto"
           onClose={closeEditModal}
+           size="auto"
+           Fondo="auto"
+
         >
           <div>
             <form className="space-y-4" onSubmit={handleEditSubmit}>
@@ -429,6 +447,9 @@ function Productos() {
           isOpen={isModalOpenn}
           nombre="Eliminar Producto"
           onClose={closeModall}
+           size="auto"
+           Fondo="auto"
+
         >
           {selectedProduct && (
             <div className="mt-4">

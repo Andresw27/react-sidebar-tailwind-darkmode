@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import '../index.css'
 
 function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(6);
+  const [rowsPerPage] = useState(5);
   const [cart, setCart] = useState([]);
   const [totalValue, setTotalValue] = useState(0);
   const [dataProductos, setDataProductos] = useState([]);
@@ -117,7 +118,7 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({puntos: Puntos}),
+          body: JSON.stringify({puntos: Puntos/2}),
         });
       
         if (!response.ok) {
@@ -172,7 +173,7 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }
 
   return (
     <div className="p-4 grid grid-cols-3 gap-4">
-      <div className="col-span-2 relative overflow-x-auto shadow-md sm:rounded-lg ">
+      <div className="col-span-2 h-96 relative  shadow-md sm:rounded-lg ">
         <div className="flex justify-between items-center p-4">
           <input
             type="text"
@@ -242,13 +243,13 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }
           </tbody>
         </table>
       </div>
-      <div className="col-span-1 relative overflow-x-auto shadow-md sm:rounded-lg bg-white p-4">
+      <div className="col-span-1 relative h-96 shadow-md  overflow-y-auto  sm:rounded-lg bg-white p-4">
         <h2 className="text-xl font-semibold mb-4">Carrito de Compras</h2>
         {cart.length === 0 ? (
           <p>Tu carrito está vacío.</p>
         ) : (
           <>
-            <ul>
+            <ul className="  h-48 overflow-y-auto">
               {cart.map((item, index) => (
                 <li
                   key={index}
@@ -286,18 +287,21 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }
                 </li>
               ))}
             </ul>
+            <div className="flex justify-center flex-col">
             <div className="mt-4 flex justify-between items-center">
-              <span className="font-semibold">Total:</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-base">TOTAL:</span>
+              <span className="font-bold text-lg">
                 {`${Number(calculateTotal()).toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}`}
               </span>
             </div>
             <button
               onClick={handleClick}
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+              className="mt-4 text-base font-bold bg-blue-500 text-white px-4 py-2 rounded"
             >
               Agregar Valor Total
             </button>
+            </div>
+           
           </>
         )}
       </div>

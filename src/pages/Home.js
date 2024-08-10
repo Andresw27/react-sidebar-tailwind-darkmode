@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import Layout from "../components/Layout";
 import { BiBriefcaseAlt } from "react-icons/bi";
 import { MdOutlinePendingActions } from "react-icons/md";
+import { MdAccessTimeFilled } from "react-icons/md";
+import { MdDateRange } from "react-icons/md";
+
 import { FaMotorcycle } from "react-icons/fa";
 import { Tooltip } from "@material-tailwind/react";
-import { FaRegEdit } from "react-icons/fa";
+import { FaRegEdit, FaRegClock } from "react-icons/fa";
+import { GrCompliance } from "react-icons/gr";
+
 import { IoFilter, IoClose } from "react-icons/io5";
 import { IoSearch } from "react-icons/io5";
 import { db } from "../firebase-config";
-import { collection, query, where, onSnapshot, doc, getDocs, orderBy } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDocs,
+  orderBy,
+} from "firebase/firestore";
 import { FaFileInvoice } from "react-icons/fa";
 import Modal from "../components/Modal";
 import Carrito from "../components/Carrito";
@@ -24,9 +37,11 @@ const Home = ({ totalValue }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(6);
+  const [rowsPerPage] = useState(1);
   const [valorTotal, setValorTotal] = useState(0);
   const [showAlert, setShowAlert] = useState(false);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+
   const [alertMessage, setAlertMessage] = useState("");
   const [selectedFilters, setSelectedFilters] = useState({
     estado: null,
@@ -35,9 +50,60 @@ const Home = ({ totalValue }) => {
   const [searchVisible, setSearchVisible] = useState(false);
   const [numeroWp, setNumeroWp] = useState(0);
 
-  const { uidUser, identificador } = useSelector(state => state.user);
+  const { uidUser, identificador, valorMinimo, PuntosporValor } = useSelector(
+    (state) => state.user
+  );
 
+  const editableRef = useRef(null);
+  const [fecha, setFecha] = useState(new Date());
+  let Puntos = Number(PuntosporValor);
+  // console.log("Puntos",Puntos)
 
+  // Nombres de los meses en español
+  const nombresMeses = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+
+  // Función para actualizar la fecha y hora
+  const actualizarReloj = () => {
+    setFecha(new Date());
+  };
+
+  // Use effect para actualizar la fecha cada segundo
+  useEffect(() => {
+    const intervalo = setInterval(actualizarReloj, 1000);
+    return () => clearInterval(intervalo); // Limpiar el intervalo al desmontar el componente
+  }, []);
+
+  // Obtener partes de la fecha y hora
+  const dia = fecha.getDate();
+  const mes = fecha.getMonth();
+  const año = fecha.getFullYear();
+  let horas = fecha.getHours();
+  const minutos = fecha.getMinutes().toString().padStart(2, "0");
+  const segundos = fecha.getSeconds().toString().padStart(2, "0");
+
+  // Convertir a formato de 12 horas y AM/PM
+  const ampm = horas >= 12 ? "PM" : "AM";
+  horas = horas % 12;
+  horas = horas ? horas : 12; // El 0 debe ser 12
+  const horasFormateadas = horas.toString().padStart(2, "0");
+
+  // Formatear la fecha y la hora
+  const nombreMes = nombresMeses[mes];
+  const fechaCompleta = `${dia} de ${nombreMes} del año ${año}`;
+  const horaActual = `Hora Actual: ${horasFormateadas}:${minutos}:${segundos} ${ampm}`;
 
   const handleSearchClick = () => {
     setSearchVisible(true);
@@ -67,7 +133,6 @@ const Home = ({ totalValue }) => {
       });
 
       if (!uidUser) {
-        console.error("Usuario no encontrado");
         return;
       }
 
@@ -81,31 +146,31 @@ const Home = ({ totalValue }) => {
 
           // Verificar que 'carrito' está definido y es un array antes de usar reduce
           const valorTotal = Array.isArray(pedido.carrito)
-            ? pedido.carrito.reduce((acc, item) => acc + (item.cantidad * item.valorp), 0)
+            ? pedido.carrito.reduce(
+                (acc, item) => acc + item.cantidad * item.valorp,
+                0
+              )
             : 0;
 
           pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
         });
 
-        const valorTotalPedidos = pedidos.reduce((acc, pedido) => acc + pedido.valor, 0);
+        const valorTotalPedidos = pedidos.reduce(
+          (acc, pedido) => acc + pedido.valor,
+          0
+        );
         setValorTotal(valorTotalPedidos);
         setDataOrder(pedidos);
-        console.log("Pedidos actualizados:", pedidos);
       });
 
       return () => unsubscribe();
-    } catch (error) {
-      console.error("Error al obtener los datos:", error.message);
-    }
+    } catch (error) {}
   };
-
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-
-  
   //NUEVO PEDIDO
   // useEffect(() => {
   //   if (previousOrders.length < dataOrder.length) {
@@ -155,19 +220,54 @@ const Home = ({ totalValue }) => {
 
   const handleChangeselect = async (id, value) => {
     const newDataOrder = [...dataOrder];
-    console.log('changeselect',newDataOrder);
 
     const orderIndex = newDataOrder.findIndex((order) => order.id === id);
     if (orderIndex !== -1) {
       newDataOrder[orderIndex].estado = value;
       setDataOrder(newDataOrder);
 
-      // Obtener el id de la orden
+      // Obtener el id de la orden y número de WhatsApp
       const orderId = newDataOrder[orderIndex].id;
-      setNumeroWp(newDataOrder[orderIndex].numeroWp)
+      const numeroWp = newDataOrder[orderIndex].numeroWp;
+      setNumeroWp(numeroWp);
+      console.log(totalValue, "total");
+
+      if (value === "Aceptado" && totalValue >= valorMinimo) {
+        console.log(
+          "Estado cambiado a 'Aceptado' y el total es mayor al valor mínimo",
+          totalValue + " > " + valorMinimo
+        );
+
+        try {
+          const response = await fetch(
+            `https://us-central1-jeicydelivery.cloudfunctions.net/app/puntos/update/${identificador}/${numeroWp}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ puntos: Puntos / 2 }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          } else {
+            console.log(
+              "Puntos actualizados correctamente",
+              Puntos,
+              totalValue
+            );
+          }
+
+          const updatedTotal = await response.text();
+          console.log("Puntos actualizados:", updatedTotal);
+        } catch (error) {
+          console.error("Error al actualizar los puntos:", error.message);
+        }
+      }
 
       // Actualizar la orden en el servidor
-      // Persistir los cambios en el servidor
       try {
         const response = await fetch(
           `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}/${orderId}`,
@@ -181,28 +281,32 @@ const Home = ({ totalValue }) => {
         );
 
         if (!response.ok) {
-          throw new Error("Error al actualizar la orden en el servidor");
+          setAlertMessage(
+            "Error al actualizar el estado del pedido. Inténtalo nuevamente."
+          );
+          setShowErrorAlert(true);
+        } else {
+          setAlertMessage("Estado actualizado con éxito");
+          setShowAlert(true);
         }
-        setAlertMessage("Estado actualizado con éxito");
-        setShowAlert(true);
       } catch (error) {
-        console.error("Error:", error);
+        console.error(
+          "Error al actualizar el estado del pedido:",
+          error.message
+        );
         // Manejar el error (posiblemente revertir el cambio local)
       }
     }
   };
 
-  console.log("numeroWp", numeroWp);
-  // Función para manejar el blur (cuando se pierde el foco) del input de edición
   const handleBlur = async () => {
     const newDataOrder = [...dataOrder];
     const orderIndex = newDataOrder.findIndex(
       (order) => order.id === editOrderId
     );
-    console.log("orderID: " + orderIndex);
     if (orderIndex !== -1) {
       const orderId = newDataOrder[orderIndex].id;
-  
+
       try {
         const response = await fetch(
           `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}/${orderId}`,
@@ -216,18 +320,35 @@ const Home = ({ totalValue }) => {
         );
 
         if (!response.ok) {
-          throw new Error("Error al actualizar la orden en el servidor");
+          setAlertMessage(
+            "Error al actualizar los datos del pedido . Inténtalo nuevamente."
+          );
+          setShowErrorAlert(true);
         } else {
           setAlertMessage("Información actuadlizada con éxito");
           setShowAlert(true);
         }
       } catch (error) {
-        console.error("Error:", error);
+        // console.error("Error:", error);
         // Manejar el error (posiblemente revertir el cambio local)
       }
     }
-    setEditOrderId(null); // Opcional: Limpiar el estado de edición
+    setEditOrderId(null); // Limpiar el estado de edición
   };
+
+  const handleClickOutside = (event) => {
+    if (editableRef.current && !editableRef.current.contains(event.target)) {
+      handleBlur();
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Añadir un efecto para manejar las teclas "Enter" y "Escape" globalmente
   const handleKeyDown = (e) => {
@@ -259,18 +380,20 @@ const Home = ({ totalValue }) => {
   //obtener total de pedidos
   const totalPedidos = dataOrder.reduce((total, order) => total + 1, 0);
   //obtener total pedidos entregados
+  const totalPedidosSolicitados = dataOrder.filter(
+    (order) => order.estado === "Solicitado"
+  ).length;
+
+  const totalPedidosAceptado = dataOrder.filter(
+    (order) => order.estado === "Aceptado"
+  ).length;
+  const totalPedidosDistribucion = dataOrder.filter(
+    (order) => order.estado === "Distribucion"
+  ).length;
+
   const totalPedidosEntregados = dataOrder.filter(
     (order) => order.estado === "Entregado"
   ).length;
-
-  //obtener total pedidos pendientes
-  const totalPedidosPendientes = dataOrder.filter(
-    (order) =>
-      order.estado === "Solicitado" ||
-      order.estado === "Distribucion" ||
-      order.estado === "Aceptado"
-  ).length;
-
   //Generador de fatura pdf
   const generarFactura = (order) => {
     const doc = new jsPDF("p", "mm", "a4"); // Tamaño A4 en milímetros
@@ -432,67 +555,110 @@ const Home = ({ totalValue }) => {
       {showAlert && (
         <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
       )}
+      {showErrorAlert && (
+        <Alert
+          message={alertMessage}
+          type="error"
+          onClose={() => setShowErrorAlert(false)}
+        />
+      )}
       <div className="">
-        <div className="my-3 mx-10">
+        <div className="my-4 mx-10 flex justify-between">
           <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
             Bienvenidos
           </p>
-        </div>
-
-        <div className=" md:px-10 grid grid-cols-1 md:grid-cols-3 gap-4 ">
-          <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-emerald-100 bg-opacity-30 backdrop-blur-sm shadow-md">
-            <div className="flex justify-center items-center w-16 h-16 rounded-full bg-emerald-100 shadow-lg">
-              <BiBriefcaseAlt className="text-3xl" />
-            </div>
-            <div className="flex flex-col justify-center items-start">
-              <p className="text-4xl font-bold whitespace-nowrap">
-                {totalPedidos === 0 ? "0" : totalPedidos}
-              </p>
-              <p className="text-2xl text-gray-500 whitespace-nowrap">
-                Total Pedidos
+          <div className="flex gap-8">
+            <div className="flex justify-center gap-2 items-center bg-slate-50  p-2 rounded-full">
+              <MdDateRange />
+              <p className="text-1xl text-gray-500 whitespace-nowrap">
+                {fechaCompleta}
               </p>
             </div>
-          </div>
-
-          <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-amber-100 bg-opacity-30 backdrop-blur-sm shadow-md">
-            <div className="flex justify-center items-center w-16 h-16 rounded-full bg-amber-100 shadow-lg">
-              <MdOutlinePendingActions className="text-3xl" />
-            </div>
-            <div className="flex flex-col justify-center items-start">
-              <p className="text-4xl font-bold whitespace-nowrap">
-                {totalPedidosPendientes > 0 ? totalPedidosPendientes : "0"}
-              </p>
-              <p className="text-2xl text-gray-500 whitespace-nowrap">
-                Total Pendientes
-              </p>
-            </div>
-          </div>
-
-          <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-blue-100 bg-opacity-30 backdrop-blur-sm shadow-md">
-            <div className="flex justify-center items-center w-16 h-16 rounded-full bg-blue-100 shadow-lg">
-              <FaMotorcycle className="text-3xl" />
-            </div>
-            <div className="flex flex-col justify-center items-start">
-              <p className="text-4xl font-bold whitespace-nowrap">
-                {totalPedidosEntregados > 0 ? totalPedidosEntregados : "0"}
-              </p>
-              <p className="text-2xl text-gray-500 whitespace-nowrap">
-                Total Entregados
+            <div className="flex justify-center gap-2 items-center bg-slate-50  p-2 rounded-full">
+              <FaRegClock />
+              <p className="text-1xl text-gray-500 whitespace-nowrap">
+                {horaActual}
               </p>
             </div>
           </div>
         </div>
+        <div className="md:px-2 grid grid-cols-1 md:grid-cols-1 gap-4 ">
+        
 
-        <div className="my-3 mx-10 mt-4">
-          <p className="md:text-2xl text-2xl text-zinc-500 dark:text-white text-start md:text-left font-semibold">
-            Pedidos
-          </p>
+          <div className="col-span-4 grid grid-cols-4 gap-3 mb-4">
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-100 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-red-100 shadow-lg">
+                <MdOutlinePendingActions className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {totalPedidosSolicitados > 0 ? totalPedidosSolicitados : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                  Pedidos Solicitados
+                </p>
+              </div>
+            </div>
+
+            {/* Pedidos Aceptados */}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-blue-100 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-blue-100 shadow-lg">
+                <MdAccessTimeFilled className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {totalPedidosAceptado > 0 ? totalPedidosAceptado : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                  Pedidos Aceptados
+                </p>
+              </div>
+            </div>
+
+            {/* Pedidos Distribución */}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-yellow-100 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-yellow-100 shadow-lg">
+                <FaMotorcycle className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {totalPedidosDistribucion > 0
+                    ? totalPedidosDistribucion
+                    : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                  Pedidos Distribución
+                </p>
+              </div>
+            </div>
+
+            {/* Total Entregados */}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-green-100 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-green-100 shadow-lg">
+                <GrCompliance className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {totalPedidosEntregados > 0 ? totalPedidosEntregados : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                  Pedidos Entregados
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="">
-          <div className="relative overflow-x-auto max-w-full  sm:rounded-lg">
-            <div className="flex flex-col sm:flex-row flex-wrap items-center mx-8 justify-between pb-2">
-              <div className="flex gap-4">
+        <div ref={editableRef} className="">
+          <div
+            ref={editableRef}
+            className="relative overflow-x-auto max-w-full  sm:rounded-lg"
+          >
+            <div
+              ref={editableRef}
+              className="  flex flex-col sm:flex-row flex-wrap items-center mx-8 justify-between pb-2"
+            >
+              <div ref={editableRef} className="flex gap-4">
                 {!searchVisible && (
                   <div>
                     <Tooltip content="Buscar Pedido">
@@ -536,58 +702,71 @@ const Home = ({ totalValue }) => {
                 {openFilter && (
                   <div className="flex justify-start gap-4 ">
                     <button
-                      className={`p-2 rounded-full ${isFilterActive("estado", "Solicitado")
-                        ? "bg-red-100 text-black font-semibold"
-                        : "bg-gray-50"
-                        }`}
+                      className={`p-2 rounded-full ${
+                        isFilterActive("estado", "Solicitado")
+                          ? "bg-red-100 text-black font-semibold"
+                          : "bg-gray-50"
+                      }`}
                       onClick={() => handleFilterChange("estado", "Solicitado")}
                     >
                       Solicitado
                     </button>
                     <button
-                      className={`p-2 rounded-full ${isFilterActive("estado", "Aceptado")
-                        ? "bg-blue-100 text-black font-semibold"
-                        : "bg-gray-50"
-                        }`}
+                      className={`p-2 rounded-full ${
+                        isFilterActive("estado", "Aceptado")
+                          ? "bg-blue-100 text-black font-semibold"
+                          : "bg-gray-50"
+                      }`}
                       onClick={() => handleFilterChange("estado", "Aceptado")}
                     >
                       Aceptado
                     </button>
                     <button
-                      className={`p-2 rounded-full ${isFilterActive("estado", "Distribucion")
-                        ? "bg-yellow-100 text-black font-semibold"
-                        : "bg-gray-50"
-                        }`}
-                      onClick={() => handleFilterChange("estado", "Distribucion")}
+                      className={`p-2 rounded-full ${
+                        isFilterActive("estado", "Distribucion")
+                          ? "bg-yellow-100 text-black font-semibold"
+                          : "bg-gray-50"
+                      }`}
+                      onClick={() =>
+                        handleFilterChange("estado", "Distribucion")
+                      }
                     >
                       Distribucion
                     </button>
                     <button
-                      className={`p-2 rounded-full ${isFilterActive("estado", "Entregado")
-                        ? "bg-green-100 text-black font-semibold"
-                        : "bg-gray-50"
-                        }`}
+                      className={`p-2 rounded-full ${
+                        isFilterActive("estado", "Entregado")
+                          ? "bg-green-100 text-black font-semibold"
+                          : "bg-gray-50"
+                      }`}
                       onClick={() => handleFilterChange("estado", "Entregado")}
                     >
                       Entregado
                     </button>
 
-                    <button
-                      onClick={handleClearAndCloseFilters}
-
-                    >
+                    <button onClick={handleClearAndCloseFilters}>
                       <p className="font-bold">Limpiar y cerrar filtros</p>
                     </button>
                   </div>
                 )}
               </div>
-
-
-
-
+              <div
+                ref={editableRef}
+                className="my-3 mx-10 mt-4  bg-black p-2 px-4 rounded-full"
+              >
+                <p className="md:text-base text-2xl text-white dark:text-white text-start md:text-left font-semibold ">
+                  Total Pedidos {totalPedidos === 0 ? "0" : totalPedidos}
+                </p>
+              </div>
             </div>
-            <div className="overflow-x-auto mx-4 shadow-md sm:rounded-lg">
-              <table className="w-full text-xs text-left rtl:text-right text-gray-500 dark:text-gray-400">
+            <div
+              ref={editableRef}
+              className="overflow-x-auto mx-4 shadow-md sm:rounded-lg"
+            >
+              <table
+                ref={editableRef}
+                className="w-full text-xs text-left rtl:text-right text-gray-500 dark:text-gray-400"
+              >
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
                     <th
@@ -650,8 +829,9 @@ const Home = ({ totalValue }) => {
                       </td>
                       <td
                         hidden
-                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                          }`}
+                        className={`${
+                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -669,10 +849,11 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id
-                          ? "px-2 py-2 sm:px-0 sm:py-3"
-                          : "px-2 py-2 sm:px-2 sm:py-3"
-                          }`}
+                        className={`${
+                          editOrderId === order.id
+                            ? "px-2 py-2 sm:px-0 sm:py-3"
+                            : "px-2 py-2 sm:px-2 sm:py-3"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -692,8 +873,9 @@ const Home = ({ totalValue }) => {
                       </td>
                       <td
                         hidden
-                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                          }`}
+                        className={`${
+                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -711,8 +893,9 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                          }`}
+                        className={`${
+                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -731,8 +914,9 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                          }`}
+                        className={`${
+                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -751,8 +935,9 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
-                          }`}
+                        className={`${
+                          editOrderId === order.id ? "px-1 py-1" : "px-1 py-1"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -771,10 +956,11 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id
-                          ? "px-2 py-2 sm:px-0 sm:py-3 "
-                          : "px-2 py-2 sm:px-0 sm:py-3"
-                          }`}
+                        className={`${
+                          editOrderId === order.id
+                            ? "px-2 py-2 sm:px-0 sm:py-3 "
+                            : "px-2 py-2 sm:px-0 sm:py-3"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -795,10 +981,11 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id
-                          ? "px-2 py-2 sm:px-0 sm:py-3"
-                          : "px-2 py-2 sm:px-4  sm:py-3"
-                          }`}
+                        className={`${
+                          editOrderId === order.id
+                            ? "px-2 py-2 sm:px-0 sm:py-3"
+                            : "px-2 py-2 sm:px-4  sm:py-3"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -817,10 +1004,11 @@ const Home = ({ totalValue }) => {
                         )}
                       </td>
                       <td
-                        className={`${editOrderId === order.id
-                          ? "px-2 py-2 sm:px-0 sm:py-3"
-                          : "px-2 py-2 sm:px-0 sm:py-3"
-                          }`}
+                        className={`${
+                          editOrderId === order.id
+                            ? "px-2 py-2 sm:px-0 sm:py-3"
+                            : "px-2 py-2 sm:px-0 sm:py-3"
+                        }`}
                         onDoubleClick={() => handleDoubleClick(order.id)}
                       >
                         {editOrderId === order.id ? (
@@ -834,7 +1022,13 @@ const Home = ({ totalValue }) => {
                               </button>
                             </Tooltip>
 
-                            <Modal isOpen={isModalOpen} nombre="Agregar Productos" onClose={closeModal}>
+                            <Modal
+                              isOpen={isModalOpen}
+                              nombre="Agregar Productos"
+                              onClose={closeModal}
+                              Fondo="auto"
+                            >
+                              <div className=" justify-center flex"><p className="bg-slate-50 rounded-full text-black p-2 text-base">Pedido: {order.descripcion}</p></div>
                               <Carrito
                                 order={order}
                                 ordenId={order.id}
@@ -849,7 +1043,6 @@ const Home = ({ totalValue }) => {
                         ) : (
                           <Tooltip content={order.valor}>
                             <span>
-
                               {`${Number(order.valor).toLocaleString("es-CO", {
                                 style: "currency",
                                 currency: "COP",
@@ -921,7 +1114,6 @@ const Home = ({ totalValue }) => {
                   ))}
                 </tbody>
               </table>
-
             </div>
             <div className="flex justify-end mx-4 mt-6 items-center space-x-2">
               <button
@@ -937,8 +1129,7 @@ const Home = ({ totalValue }) => {
               <button
                 onClick={() => paginate(currentPage + 1)}
                 disabled={
-                  currentPage ===
-                  Math.ceil(filteredOrder.length / rowsPerPage)
+                  currentPage === Math.ceil(filteredOrder.length / rowsPerPage)
                 }
                 className="p-2 border border-gray-300 rounded"
               >

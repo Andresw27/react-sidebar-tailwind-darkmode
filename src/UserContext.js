@@ -14,22 +14,22 @@ const UserProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (userAuth) => {
       try {
-        console.log("userAuth", userAuth);
+        // console.log("userAuth", userAuth);
 
         if (userAuth) {
           const userData = await fetchUserData(userAuth.uid);
-          console.log("userGlobalsssss", userData);
+          // console.log("userGlobalsssss", userData);
           setUser({...userData,uid:userAuth.uid});
           // Guardar el usuario en localStorage
           localStorage.setItem('user', JSON.stringify(userData));
         } else {
-          console.log("No hay usuario autenticado.");
+          // console.log("No hay usuario autenticado.");
           setUser(null); // Resetea el estado del usuario si no hay autenticación
           // Remover el usuario de localStorage
           localStorage.removeItem('user');
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        // console.error("Error fetching user data:", error);
       }
     });
 
