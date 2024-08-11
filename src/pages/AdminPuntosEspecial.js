@@ -4,6 +4,7 @@ import { IoSearch, IoClose, IoSettingsSharp } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
 import { FaCoins, FaBookOpen } from "react-icons/fa";
 import { auth } from "../firebase-config";
+import { FaCrown } from "react-icons/fa";
 
 import { BsGiftFill } from "react-icons/bs";
 import { IoEye } from "react-icons/io5";
@@ -32,14 +33,31 @@ function AdminPuntos() {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPagePremio, setCurrentPagePremio] = useState(1);
   const [rowsPerPagePremio] = useState(4);
+  const [dataAcciones, setDataAcciones] = useState([])
+  const [selectedAction, setSelectedAction] = useState("");
 
   const [rowsPerPage] = useState(5);
   const [searchVisible, setSearchVisible] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [PuntosModalOpen, setPuntosModalOpen] = useState(false);
   const [selectCliente, setSelectCliente] = useState(null);
-  const [valorPuntos, setValorPuntos] = useState("");
-  const [compraValor, setCompraValor] = useState("");
+
+  //estados de acciones
+  const [puntosAccion, setpuntosAccion] = useState("");
+  const [nombreAccion, setnombreAccion] = useState("");
+  const [descripcionAccion, setDescripcionAccion] = useState("")
+
+  //estados de premios globales y normales crear
+  const [NewnombrePremioGlobal, setNewnombrePremioGlobal] = useState("")
+  const [NewdescripcionPremioGlobal, setNewdescripcionPremioGlobal] = useState("")
+  const [NewpuntosPremioGlobal,setNewPuntosPremioGlobal]=useState("")
+
+  //estados premios especificos nuevos crear
+  const [NewnombrePremioEspe, setNewnombrePremioEspe] = useState("")
+  const [NewdescripcionPremioEspe, setNewdescripcionPremioEspe] = useState("")
+  const [NewpuntosPremioEspe,setNewPuntosPremioEspe]=useState("")
+
+
   const [showAlert, setShowAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -59,24 +77,28 @@ function AdminPuntos() {
   const [userPaquete, setUserPaquete] = useState(null);
   const [ModarAcciones, setModalAcciones] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [ openModalPremioGlobal,setopenModalPremioGlobal]=useState("")
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const userAuth = auth.currentUser;
-        if (userAuth) {
-          const userData = await fetchUserData(userAuth.uid);
+  const [openModalPremioGlobal, setopenModalPremioGlobal] = useState("")
 
-          setUserPaquete(userData.paquete);
-          console.log(userPaquete, "ddssss");
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
-    };
+  // console.log("accione seleccionada2 ",selectedAction)
 
-    fetchData();
-  }, []);
+
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     try {
+  //       const userAuth = auth.currentUser;
+  //       if (userAuth) {
+  //         const userData = await fetchUserData(userAuth.uid);
+
+  //         setUserPaquete(userData.paquete);
+  //         console.log(userPaquete, "ddssss");
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching user data:", error);
+  //     }
+  //   };
+
+  //   fetchData();
+  // }, []);
 
   const handleDropdownToggle = () => {
     setDropdownOpen((prev) => !prev);
@@ -85,13 +107,13 @@ function AdminPuntos() {
 
   //modal para configurar premios globales
 
-  const openModalpremiosGlobal =()=>{
+  const openModalpremiosGlobal = () => {
 
     setopenModalPremioGlobal(true);
     setDropdownOpen(false);
   }
 
-  const ClosedModalpremiosGlobal =()=>{
+  const ClosedModalpremiosGlobal = () => {
 
     setopenModalPremioGlobal(false);
   }
@@ -144,15 +166,15 @@ function AdminPuntos() {
         return;
       }
 
-      const solicitudesRef = collection(
+      const accionesRef = collection(
         db,
         "solicitudes",
         uidUser,
-        "historial"
+        "historial",where("tipo", "!=", "Redencion Premios")
       );
-      const solicitudesQuery = query(solicitudesRef);
+      const accionesQuery = query(accionesRef);
 
-      const unsubscribe = onSnapshot(solicitudesQuery, (snapshot) => {
+      const unsubscribe = onSnapshot(accionesQuery, (snapshot) => {
         const solicitudes = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
@@ -163,7 +185,7 @@ function AdminPuntos() {
         });
 
         setDataClientesFactura(solicitudes);
-        // console.log("data recibos", solicitudes);
+        console.log("data recibos", solicitudes);
       });
 
       return () => unsubscribe();
@@ -171,6 +193,45 @@ function AdminPuntos() {
       // console.error("Error al obtener los datos:", error.message);
     }
   };
+
+  const fetchAccciones = async () => {
+    try {
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      const accionesRef = collection(db, "usuarios", uidUser, "acciones");
+
+      const accionesQuery = query(accionesRef);
+
+      const unsubscribe = onSnapshot(accionesQuery, (snapshot) => {
+        const acciones = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          acciones.push({
+            id: doc.id,
+            ...data
+          });
+        });
+
+        setDataAcciones(acciones);
+        console.log("acciones", acciones);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      // console.error("Error al obtener los datos:", error.message);
+    }
+  };
+
 
   const getConfig = async () => {
     try {
@@ -216,25 +277,27 @@ function AdminPuntos() {
   useEffect(() => {
     getConfig();
     fetchSolicitudes();
+    fetchAccciones();
   }, [user]);
 
-  const handleSubmitPuntos = async (e) => {
+  const handleSubmitActions = async (e) => {
     e.preventDefault();
 
-    const ConfigValores = {
-      valorMinimo: compraValor,
-      PuntosporValor: valorPuntos,
+    const formDataActions = {
+      nombre: nombreAccion,
+      puntos: puntosAccion,
+      descripcion: descripcionAccion
     };
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/config/set/valores/${identificador}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/actions/${identificador}`,
         {
-          method: "PUT",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(ConfigValores),
+          body: JSON.stringify(formDataActions),
         }
       );
 
@@ -243,12 +306,13 @@ function AdminPuntos() {
       }
       setAlertMessage("Puntos configurados correctamente");
       setShowAlert(true);
-      setCompraValor("");
-      setValorPuntos("");
+      setnombreAccion("");
+      setpuntosAccion("");
+      setDescripcionAccion("")
       closePuntosModal();
     } catch (error) {
       // console.error("Error configuring points:", error);
-      setAlertMessage("Error configurando los puntos. Inténtalo nuevamente.");
+      setAlertMessage("Error configurando los puntos. Inténtalo nuevamente.", error.message);
       setShowErrorAlert(true);
     }
   };
@@ -298,11 +362,16 @@ function AdminPuntos() {
   };
 
   const HandleAprovedCliente = async (cliente) => {
+    console.log("Cliente aprobado", cliente, "accion seleccionada", selectedAction);
+
     const clienteAprobado = {
-      estado: "Aprobado",
+      fecha: "10/08/2024",
       nombre: cliente.nombre,
-      puntos: Number(PuntosporValor),
+      puntos: selectedAction,
+      estado: "Aprobado",
     };
+
+
 
     console.info("Cliente", cliente.id, cliente.numerowp);
 
@@ -382,19 +451,59 @@ function AdminPuntos() {
   //Obtener Premios del cliente
   const fetchPremios = async () => {
     try {
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/${identificador}`
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
       );
-      const data = await response.json();
-      setDataPremios(data);
-      console.log(data);
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const userDocRef = collection(db, "usuarios", uidUser, "premios");
+      const premiosGlobalesDocRef = doc(db, "premiosGlobales", uidUser);
+
+      const premios = [];
+
+
+      const unsubscribe1 = onSnapshot(premiosGlobalesDocRef, (doc) => {
+        if (doc.exists()) {
+          premios.push({
+            tipo: "global",
+            id: doc.id,
+            ...doc.data()
+          });
+        } else {
+          console.error("No se encontraron premios globales.");
+        }
+      });
+
+
+      const unsubscribe2 = onSnapshot(userDocRef, (querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          premios.push({
+            id: doc.id,
+            ...doc.data()});
+        });
+      });
+
+      console.log("premios: ", premios)
+      setDataPremios(premios)
+
+      return { premios, unsubscribe1, unsubscribe2 };
     } catch (error) {
-      setAlertMessage(
-        "Error al obtener los datos. recarge la página e inténtalo nuevamente."
-      );
-      setShowErrorAlert(true);
+      console.error("Error al obtener los datos:", error.message);
     }
   };
+
+
   const IdPremio = DataPremios.id;
   useEffect(() => {
     fetchPremios();
@@ -405,9 +514,9 @@ function AdminPuntos() {
     e.preventDefault();
 
     const newProduct = {
-      nombre: NombrePremio,
-      descripcion: DescripcionPremio,
-      costoPuntos: CantidadPuntos,
+      nombre: NewnombrePremioEspe,
+      descripcion: NewdescripcionPremioEspe,
+      costoPuntos: NewpuntosPremioEspe,
     };
 
     try {
@@ -428,12 +537,17 @@ function AdminPuntos() {
         );
         setShowErrorAlert(true);
         ClosedModalPremios();
-      } else {
-        setAlertMessage("Premio configurado con éxito");
-        setShowAlert(true);
         setNombrePremio("");
         setDescripcionPremio("");
         setCantidadPuntos("");
+        ClosedModalPremios();
+        fetchPremios();
+      } else {
+        setAlertMessage("Premio configurado con éxito");
+        setShowAlert(true);
+        setNewnombrePremioEspe("");
+        setNewdescripcionPremioEspe("");
+        setNewPuntosPremioEspe("");
         ClosedModalPremios();
         fetchPremios();
       }
@@ -464,7 +578,7 @@ function AdminPuntos() {
       console.error("No product to edit");
       return;
     }
-
+    console.log("selectedPremio:", selectPremioEdit )
     const updatedProduct = {
       ...selectPremioEdit,
       nombre: NombrePremio,
@@ -618,13 +732,13 @@ function AdminPuntos() {
                       </tr>
                     </thead>
                     <tbody>
-                      {CurrentPremio.length === 0 ? (
+                      {dataAcciones.length === 0 ? (
                         <p className="text-center text-xs mx-10   flex justify-center items-center mt-10 mb-10">
                           No hay acciónes configuradas actualmente, por favor
                           configuré una acción
                         </p>
                       ) : (
-                        CurrentPremio.map((premio, index) => (
+                        dataAcciones.map((premio, index) => (
                           <tr
                             key={index}
                             className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -636,7 +750,7 @@ function AdminPuntos() {
                               {premio.descripcion}
                             </td>
                             <td className="px-4  py-4 font-semibold text-gray-900 dark:text-white">
-                              {premio.costoPuntos}
+                              {premio.puntos}
                             </td>
                             <td className="px-3 py-4 flex gap-2">
                               <Tooltip content="Editar">
@@ -663,7 +777,7 @@ function AdminPuntos() {
                                       htmlFor="number"
                                       className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                     >
-                                      Nombre Accion
+                                      Nombre Premio
                                     </label>
                                     <input
                                       type="text"
@@ -681,7 +795,7 @@ function AdminPuntos() {
                                       htmlFor="number"
                                       className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                     >
-                                      Descripción acción
+                                      Descripción Premio
                                     </label>
                                     <input
                                       type="text"
@@ -780,64 +894,70 @@ function AdminPuntos() {
               size="auto"
               Fondo="auto"
             >
-              <form className="space-y-4" onSubmit={handleSubmitPuntos}>
+              <form className="space-y-6 my-5 px-2" onSubmit={handleSubmitActions}>
                 <div>
                   <label
-                    htmlFor="text"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    htmlFor="nombreAccion"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
                   >
-                    Nombre Acción
+                    Nombre de la Acción
                   </label>
                   <input
                     type="text"
-                    onChange={(e) => setCompraValor(e.target.value)}
-                    value={compraValor}
-                    id="compraValor"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    onChange={(e) => setnombreAccion(e.target.value)}
+                    value={nombreAccion}
+                    id="nombreAccion"
+                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ingresa el nombre de la acción"
                     required
                   />
                 </div>
+
                 <div>
                   <label
-                    htmlFor="text"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    htmlFor="descripcionAccion"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
                   >
-                    Descripción Acción
+                    Descripción de la Acción
                   </label>
                   <input
                     type="text"
-                    onChange={(e) => setCompraValor(e.target.value)}
-                    value={compraValor}
-                    id="compraValor"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    onChange={(e) => setDescripcionAccion(e.target.value)}
+                    value={descripcionAccion}
+                    id="descripcionAccion"
+                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Describe brevemente la acción"
                     required
                   />
                 </div>
+
                 <div>
                   <label
-                    htmlFor="number"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    htmlFor="puntos"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
                   >
-                    Cantidad de puntos por acción
+                    Cantidad de Puntos por Acción
                   </label>
                   <input
                     type="number"
-                    onChange={(e) => setValorPuntos(e.target.value)}
-                    value={valorPuntos}
-                    id="valorPuntos"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    onChange={(e) => setpuntosAccion(e.target.value)}
+                    value={puntosAccion}
+                    id="puntos"
+                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Especifica los puntos por acción"
                     required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
                 >
                   Configurar Acción
                 </button>
               </form>
             </Modal>
+
 
             <Tooltip content="Configurar Premios">
               <div
@@ -867,7 +987,7 @@ function AdminPuntos() {
 
           <Modal
             acciononClick={openModalViewPremios}
-            nombre={"Configurar Premios Especificos"}
+            nombre={"Configurar Premios Específicos"}
             conteTooltip={"Ver Premios"}
             accion={<IoEye className="text-indigo-700 hover:text-white" />}
             isOpen={Openmodalpremios}
@@ -875,64 +995,70 @@ function AdminPuntos() {
             size="auto"
             Fondo="auto"
           >
-            <form className="space-y-4 my-10" onSubmit={handleSubmitPremio}>
-              <div className="md:w-full px-3 mb-6 md:mb-0">
+            <form className="space-y-6 my-8 px-6" onSubmit={handleSubmitPremio}>
+              <div className="md:w-full mb-4">
                 <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  htmlFor="NombrePremio"
+                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
                 >
-                  Nombre Premio
+                  Nombre del Premio
                 </label>
                 <input
                   type="text"
-                  onChange={(e) => setNombrePremio(e.target.value)}
-                  value={NombrePremio}
+                  onChange={(e) => setNewnombrePremioEspe(e.target.value)}
+                  value={NewnombrePremioEspe}
                   id="NombrePremio"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ingresa el nombre del premio"
                   required
                 />
               </div>
-              <div className="md:w-full px-3 mb-6 md:mb-0">
+
+              <div className="md:w-full mb-4">
                 <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  htmlFor="DescripcionPremio"
+                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
                 >
-                  Descripción del premio
+                  Descripción del Premio
                 </label>
                 <input
                   type="text"
-                  onChange={(e) => setDescripcionPremio(e.target.value)}
-                  value={DescripcionPremio}
+                  onChange={(e) => setNewdescripcionPremioEspe(e.target.value)}
+                  value={NewdescripcionPremioEspe}
                   id="DescripcionPremio"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Describe brevemente el premio"
                   required
                 />
               </div>
-              <div className="md:w-full px-3 mb-6 md:mb-0">
+
+              <div className="md:w-full mb-6">
                 <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  htmlFor="CantidadPuntos"
+                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
                 >
-                  Cantidad de puntos
+                  Cantidad de Puntos
                 </label>
                 <input
                   type="number"
-                  onChange={(e) => setCantidadPuntos(e.target.value)}
-                  value={CantidadPuntos}
+                  onChange={(e) => setNewPuntosPremioEspe(e.target.value)}
+                  value={NewpuntosPremioEspe}
                   id="CantidadPuntos"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Especifica los puntos requeridos"
                   required
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
               >
                 Configurar Premios
               </button>
             </form>
           </Modal>
+
 
           <Modal
             nombre="Premios"
@@ -979,13 +1105,13 @@ function AdminPuntos() {
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
                     <th scope="col" className="px-4 py-3">
-                      Nombre Accion
+                      Nombre
                     </th>
                     <th scope="col" className="px-4 py-3">
-                      Descripción Accion
+                      Descripción
                     </th>
                     <th scope="col" className="px-4 py-3">
-                      Cantidad de puntos por accion
+                      Cantidad de puntos
                     </th>
                     <th scope="col" className="px-4 py-3">
                       Acciónnnnn
@@ -1011,7 +1137,7 @@ function AdminPuntos() {
                           {premio.descripcion}
                         </td>
                         <td className="px-4  py-4 font-semibold text-gray-900 dark:text-white">
-                          {premio.costoPuntos}
+                          {premio.tipo === "global" ? (<FaCrown />) : null} {premio.costoPuntos}
                         </td>
                         <td className="px-3 py-4 flex gap-2">
                           <Tooltip content="Editar">
@@ -1038,7 +1164,7 @@ function AdminPuntos() {
                                   htmlFor="number"
                                   className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                 >
-                                  Nombre Accion
+                                  Nombre 
                                 </label>
                                 <input
                                   type="text"
@@ -1056,7 +1182,7 @@ function AdminPuntos() {
                                   htmlFor="number"
                                   className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                 >
-                                  Descripción acción
+                                  Descripción
                                 </label>
                                 <input
                                   type="text"
@@ -1074,7 +1200,7 @@ function AdminPuntos() {
                                   htmlFor="number"
                                   className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                 >
-                                  Cantidad de puntos por accion
+                                  Cantidad de puntos
                                 </label>
                                 <input
                                   type="number"
@@ -1092,7 +1218,7 @@ function AdminPuntos() {
                                 type="submit"
                                 className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                               >
-                                Actualizar Accion
+                                Actualizar
                               </button>
                             </form>
                           </Modal>
@@ -1143,91 +1269,91 @@ function AdminPuntos() {
             id="dropdownAvatarName"
             className="z-50 bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700 dark:divide-gray-600 absolute right-1  "
           >
-              <span 
-                  onClick={openModalPremios}
+            <span
+              onClick={openModalPremios}
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer">
-           
-                Premios Especificos
-              </span>
+
+              Premios Especificos
+            </span>
 
             <div className="py-2">
               <span
                 onClick={openModalpremiosGlobal}
 
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer">
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer">
                 Premio Global
               </span>
             </div>
           </div>
         )}
-          <Modal
-            // acciononClick={openModalViewPremios}
-            nombre={"Configurar Premio Global"}
-            conteTooltip={"Ver Premios"}
-            accion={<IoEye className="text-indigo-700 hover:text-white" />}
-            isOpen={openModalPremioGlobal}
-            onClose={ClosedModalpremiosGlobal}
-            size="auto"
-            Fondo="auto"
-          >
-            <form className="space-y-4 my-10" onSubmit={handleSubmitPremio}>
-              <div className="md:w-full px-3 mb-6 md:mb-0">
-                <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Nombre Premio
-                </label>
-                <input
-                  type="text"
-                  onChange={(e) => setNombrePremio(e.target.value)}
-                  value={NombrePremio}
-                  id="NombrePremio"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                  required
-                />
-              </div>
-              <div className="md:w-full px-3 mb-6 md:mb-0">
-                <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Descripción del premio
-                </label>
-                <input
-                  type="text"
-                  onChange={(e) => setDescripcionPremio(e.target.value)}
-                  value={DescripcionPremio}
-                  id="DescripcionPremio"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                  required
-                />
-              </div>
-              <div className="md:w-full px-3 mb-6 md:mb-0">
-                <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Cantidad de puntos
-                </label>
-                <input
-                  type="number"
-                  onChange={(e) => setCantidadPuntos(e.target.value)}
-                  value={CantidadPuntos}
-                  id="CantidadPuntos"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+        <Modal
+          // acciononClick={openModalViewPremios}
+          nombre={"Configurar Premio Global"}
+          conteTooltip={"Ver Premios"}
+          accion={<IoEye className="text-indigo-700 hover:text-white" />}
+          isOpen={openModalPremioGlobal}
+          onClose={ClosedModalpremiosGlobal}
+          size="auto"
+          Fondo="auto"
+        >
+          <form className="space-y-4 my-10" onSubmit={handleSubmitPremio}>
+            <div className="md:w-full px-3 mb-6 md:mb-0">
+              <label
+                htmlFor="number"
+                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
-                Configurar Premio
-              </button>
-            </form>
-          </Modal>
+                Nombre Premio
+              </label>
+              <input
+                type="text"
+                onChange={(e) => setNombrePremio(e.target.value)}
+                value={NombrePremio}
+                id="NombrePremio"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                required
+              />
+            </div>
+            <div className="md:w-full px-3 mb-6 md:mb-0">
+              <label
+                htmlFor="number"
+                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+              >
+                Descripción del premio
+              </label>
+              <input
+                type="text"
+                onChange={(e) => setDescripcionPremio(e.target.value)}
+                value={DescripcionPremio}
+                id="DescripcionPremio"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                required
+              />
+            </div>
+            <div className="md:w-full px-3 mb-6 md:mb-0">
+              <label
+                htmlFor="number"
+                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+              >
+                Cantidad de puntos
+              </label>
+              <input
+                type="number"
+                onChange={(e) => setCantidadPuntos(e.target.value)}
+                value={CantidadPuntos}
+                id="CantidadPuntos"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+            >
+              Configurar Premio
+            </button>
+          </form>
+        </Modal>
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400  h-80">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
@@ -1246,9 +1372,9 @@ function AdminPuntos() {
               <th scope="col" className="px-6 py-3">
                 Descripción
               </th>
-              <th scope="col" className="px-6 py-3">
+              {/* <th scope="col" className="px-6 py-3">
                 Acción
-              </th>
+              </th> */}
               <th scope="col" hidden className="px-6 py-3">
                 Url Factura
               </th>
@@ -1271,7 +1397,7 @@ function AdminPuntos() {
                 className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
                 <td className="px-6 text-xs py-4 font-semibold text-gray-900 dark:text-white">
-                  {cliente.id}
+                  {cliente.idSolicitud}
                 </td>
                 <td className="px-6 text-xs py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.fecha}
@@ -1283,18 +1409,18 @@ function AdminPuntos() {
                   {cliente.nombre}
                 </td>
                 <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                  {cliente.accion}
+                  {cliente.descripcion}
                 </td>
 
-                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                {/* <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.descripcion}
-                </td>
+                </td> */}
                 <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                  {cliente.estado}
+                  Validar accion
                 </td>
-                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                {/* <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.descripcion}
-                </td>
+                </td> */}
                 <td
                   hidden
                   className="px-6 py-4 text-xs font-semibold text-gray-900 dark:text-white"
@@ -1321,43 +1447,66 @@ function AdminPuntos() {
           Fondo="auto"
         >
           {selectCliente && (
-            <div className="grid grid-cols-2 gap-10 item-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start p-6">
               <div className="flex justify-center flex-col">
                 <img className="h-96 w-86" src={`${selectCliente.recibo}`} />
               </div>
-              <div className="flex flex-col gap-6 place-content-center item-center">
-                {/* <p className="font-semibold text-title">
-                  ID Cliente: {selectCliente.id}
-                </p> */}
-                <p className="text-lg font-medium">
-                  Nombre Cliente: {selectCliente.nombre}
-                </p>
+              <div className="flex flex-col gap-6 bg-white p-4 rounded-lg shadow-md">
+                <div className="flex flex-col">
+                  <p className="text-lg font-semibold text-gray-700">Nombre Cliente:</p>
+                  <p className="text-lg text-gray-800">{selectCliente.nombre}</p>
+                </div>
 
-                <p className="text-lg font-medium">
-                  Número WhatsApp: {selectCliente.numerowp}
-                </p>
-                <div className="flex gap-4">
-                  <p className="text-lg font-medium">Estado</p>
+                <div className="flex flex-col">
+                  <p className="text-lg font-semibold text-gray-700">Número WhatsApp:</p>
+                  <p className="text-lg text-gray-800">{selectCliente.numerowp}</p>
+                </div>
 
-                  <div className="flex justify-center gap-4">
-                    <button
-                      onClick={() => HandleAprovedCliente(selectCliente)}
-                      className="bg-green-600 text-white p-2 rounded"
-                    >
-                      Aprobar
-                    </button>
-                    <button
-                      onClick={() => handleDecline(selectCliente)}
-                      className="bg-red-800 text-white p-2 rounded"
-                    >
-                      Declinar
-                    </button>
-                  </div>
+                <div className="flex flex-col">
+                  <p className="text-lg font-semibold text-gray-700">Descripción:</p>
+                  <p className="text-lg text-gray-800">{selectCliente.descripcion}</p>
+                </div>
+
+                <div className="flex flex-col">
+                  <p className="text-lg font-semibold text-gray-700">Seleccionar Acción:</p>
+                  <select
+                    className="border rounded p-2 text-gray-800"
+                    value={selectedAction}
+                    onChange={(e) => setSelectedAction(e.target.value)}
+                  >
+                    <option value="">Seleccione una acción</option>
+                    {dataAcciones.map((accion) => (
+                      <option key={accion.id} value={accion.puntos}>
+                        {accion.nombre} - {accion.puntos} puntos
+                      </option>
+                    ))}
+                  </select>
+                  {selectedAction === "" && (
+                    <p className="text-sm text-red-600 mt-1">Debe seleccionar una acción para continuar.</p>
+                  )}
+                </div>
+
+                <div className="flex justify-between gap-4">
+                  <button
+                    onClick={() => HandleAprovedCliente(selectCliente)}
+                    className={`p-2 rounded w-full text-white ${selectedAction ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'}`}
+                    disabled={!selectedAction}
+                  >
+                    Aprobar
+                  </button>
+                  <button
+                    onClick={() => handleDecline(selectCliente)}
+                    className="bg-red-800 hover:bg-red-900 text-white p-2 rounded w-full"
+                  >
+                    Declinar
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </Modal>
+
+
       </div>
       <div className="mt-2 flex justify-end mx-4">
         <div className="flex items-center space-x-2">

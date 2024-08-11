@@ -4,7 +4,7 @@ import { IoSearch, IoClose, IoSettingsSharp } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
 import { FaCoins ,FaBookOpen } from "react-icons/fa";
 import { auth } from "../firebase-config";
-
+import { FaCrown } from "react-icons/fa";
 import { BsGiftFill } from "react-icons/bs";
 import { IoEye } from "react-icons/io5";
 import { BsCoin } from "react-icons/bs";
@@ -117,7 +117,7 @@ function AdminPuntos() {
         db,
         "solicitudes",
         uidUser,
-        "historial"
+        "historial",where("tipo", "!=", "Redencion Premios")
       );
       const solicitudesQuery = query(solicitudesRef);
 
@@ -351,17 +351,56 @@ function AdminPuntos() {
   //Obtener Premios del cliente
   const fetchPremios = async () => {
     try {
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/${identificador}`
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
       );
-      const data = await response.json();
-      setDataPremios(data);
-      console.log(data);
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const userDocRef = collection(db, "usuarios", uidUser, "premios");
+      const premiosGlobalesDocRef = doc(db, "premiosGlobales", uidUser);
+
+      const premios = [];
+
+
+      const unsubscribe1 = onSnapshot(premiosGlobalesDocRef, (doc) => {
+        if (doc.exists()) {
+          premios.push({
+            tipo: "global",
+            id: doc.id,
+            ...doc.data()
+          });
+        } else {
+          console.error("No se encontraron premios globales.");
+        }
+      });
+
+
+      const unsubscribe2 = onSnapshot(userDocRef, (querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          premios.push({
+            id: doc.id,
+            ...doc.data()});
+        });
+      });
+
+      console.log("premios: ", premios)
+      setDataPremios(premios)
+
+      // return { unsubscribe2 };
+      return { premios, unsubscribe1, unsubscribe2 };
     } catch (error) {
-      setAlertMessage(
-        "Error al obtener los datos. recarge la página e inténtalo nuevamente."
-      );
-      setShowErrorAlert(true);
+      console.error("Error al obtener los datos:", error.message);
     }
   };
   const IdPremio = DataPremios.id;
@@ -438,7 +477,7 @@ function AdminPuntos() {
       ...selectPremioEdit,
       nombre: NombrePremio,
       descripcion: DescripcionPremio,
-      costoPuntos: CantidadPuntos,
+      costoPuntos: Number(CantidadPuntos),
     };
 
     try {
@@ -781,7 +820,7 @@ function AdminPuntos() {
                           {premio.descripcion}
                         </td>
                         <td className="px-4  py-4 font-semibold text-gray-900 dark:text-white">
-                          {premio.costoPuntos}
+                        {premio.tipo === "global" ? (<FaCrown />) : null} {premio.costoPuntos}
                         </td>
                         <td className="px-3 py-4 flex gap-2">
                           <Tooltip content="Editar">
