@@ -1,32 +1,31 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import Modal from "../components/Modal";
-import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
 import { Tooltip } from "@material-tailwind/react";
-import Alert from "../components/Alert"; // Importa el componente de alerta
-import { IoSearch, IoClose } from "react-icons/io5";
-
-import { UserContext } from "../UserContext"; // Asegúrate de ajustar la ruta correcta
+import Alert from "../components/Alert";
+import { IoSearch, IoClose, IoFilter } from "react-icons/io5";
+import { db } from "../firebase-config";
 import { useSelector } from "react-redux";
+import {
+  query,
+  collection,
+  where,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore";
 
 function RedimirPuntos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(6);
-  const [dataProductos, setDataProductos] = useState([]);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [nombreProducto, setNombreProducto] = useState("");
-  const [valorProducto, setValorProducto] = useState("");
-  const [showAlert, setShowAlert] = useState(false); // Estado para mostrar la alerta
-  const [alertMessage, setAlertMessage] = useState(""); // Estado para el mensaje de la alerta
-  const [isModalOpenn, setIsModalOpenn] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null); // Estado para el producto seleccionado
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [solicitudesData, setSolicitudesData] = useState([]);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
-
-  const [solicitudesData, setSolicitudesData] = useState([])
   const { identificador } = useSelector((state) => state.user);
-
+  const [openFilter, setOpenFilter] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState({
+    estado: null,
+  });
 
   const handleSearchClick = () => {
     setSearchVisible(true);
@@ -37,15 +36,43 @@ function RedimirPuntos() {
     setSearchVisible(false);
   };
 
-  const dataPuntosredimir = [{ idCliente: "45621", fecha: "9/08/2024", nombreCliente: "jeferson", numerowp: "3234381041", puntos: "1000", premio: "20% en koi koi", estado: "Solicitado" }]
+  const handleFilterChange = (filterKey, value) => {
+    setSelectedFilters((prevFilters) => ({
+      ...prevFilters,
+      [filterKey]: prevFilters[filterKey] === value ? null : value,
+    }));
+  };
 
-  const filteredPuntosRedimir = dataPuntosredimir.filter(
-    (punto) =>
-      punto.nombreCliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      punto.numerowp.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      punto.puntos.toLowerCase().includes(searchTerm.toLowerCase())
+  const isFilterActive = (filterKey, value) => {
+    return selectedFilters[filterKey] === value;
+  };
 
-  );
+  const handleClearAndCloseFilters = () => {
+    setSelectedFilters({ estado: null });
+    setOpenFilter(false);
+  };
+
+  const filteredPuntosRedimir = solicitudesData.filter((punto) => {
+    const searchLower = searchTerm.toLowerCase();
+    const estadoFilter = selectedFilters.estado
+      ? punto.estado === selectedFilters.estado
+      : true;
+
+    return (
+      estadoFilter &&
+      (punto.estado?.toLowerCase().includes(searchLower) ||
+        (punto.fecha
+          ? new Date(punto.fecha.seconds * 1000)
+              .toLocaleDateString()
+              .toLowerCase()
+              .includes(searchLower)
+          : false) ||
+        punto.idRedencion?.toLowerCase().includes(searchLower) ||
+        punto.nombrePremio?.toLowerCase().includes(searchLower) ||
+        punto.puntosRedimidos?.toString().toLowerCase().includes(searchLower) ||
+        punto.tipoPremio?.toLowerCase().includes(searchLower))
+    );
+  });
 
   const indexOfLastProduct = currentPage * rowsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - rowsPerPage;
@@ -56,28 +83,82 @@ function RedimirPuntos() {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-
   const getSolicitudes = async () => {
     try {
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/premio/${identificador}`,
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
       );
 
-      const data = await response.json();
-      console.log("solicitudes premios",data);
-      setSolicitudesData(data);
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
 
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const userDocRef = collection(db, "usuarios", uidUser, "redenciones");
+
+      const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+        const solicitudes = [];
+        snapshot.forEach((doc) => {
+          solicitudes.push({ id: doc.id, ...doc.data() });
+        });
+
+        setSolicitudesData(solicitudes);
+        console.log("data recibos", solicitudes);
+      });
+
+      return unsubscribe;
     } catch (error) {
-
-      console.error("Error updating product:", error);
+      console.error("Error al obtener los datos:", error.message);
     }
+  };
 
+  useEffect(() => {
+    getSolicitudes();
+  }, []);
+  const handleEntregarPremio = async (id) => {
+    console.log(id, "ides");
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/puntos/update/estado/${identificador}/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ estado: "Aceptado" }),
+        }
+      );
 
-  }
+      if (!response.ok) {
+        throw new Error("No se pudo actualizar el estado del premio.");
+      }
 
-useEffect(()=>{
-  getSolicitudes()
-},[])
+      setAlertMessage("Premio entregado con éxito.");
+      setShowAlert(true);
+
+      // Actualiza el estado localmente
+      setSolicitudesData((prevData) =>
+        prevData.map((punto) =>
+          punto.id === id ? { ...punto, estado: "Entregado" } : punto
+        )
+      );
+    } catch (error) {
+      console.error("Error al actualizar el estado del premio:", error);
+      setAlertMessage("Error al entregar el premio.");
+      setShowAlert(true);
+    }
+  };
+
+  useEffect(() => {
+    getSolicitudes();
+  }, []);
   return (
     <Layout>
       {showAlert && (
@@ -86,7 +167,7 @@ useEffect(()=>{
 
       <div className="my-3 mx-10">
         <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
-          Redimir Puntos
+          Redimir Premios
         </p>
       </div>
 
@@ -122,9 +203,48 @@ useEffect(()=>{
                 </div>
               </div>
             )}
+
+            <div>
+              <Tooltip content="Filtrar por estado">
+                <div
+                  onClick={() => setOpenFilter(!openFilter)}
+                  className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full"
+                >
+                  <IoFilter />
+                </div>
+              </Tooltip>
+            </div>
+            {openFilter && (
+              <div className="flex justify-start gap-4 ">
+                <button
+                  className={`p-2 rounded-full ${
+                    isFilterActive("estado", "Solicitado")
+                      ? "bg-red-100 text-black font-semibold"
+                      : "bg-gray-50"
+                  }`}
+                  onClick={() => handleFilterChange("estado", "Solicitado")}
+                >
+                  Solicitado
+                </button>
+                <button
+                  className={`p-2 rounded-full ${
+                    isFilterActive("estado", "Entregado")
+                      ? "bg-blue-100 text-black font-semibold"
+                      : "bg-gray-50"
+                  }`}
+                  onClick={() => handleFilterChange("estado", "Entregado")}
+                >
+                  Entregado
+                </button>
+                <button
+                  onClick={handleClearAndCloseFilters}
+                  className="font-bold"
+                >
+                  Limpiar y cerrar filtros
+                </button>
+              </div>
+            )}
           </div>
-
-
         </div>
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -135,14 +255,15 @@ useEffect(()=>{
               <th scope="col" className="px-6 py-3">
                 Fecha
               </th>
-              <th scope="col" className="px-6 py-3">
-                Nombre
-              </th>
+
               <th scope="col" className="px-6 py-3">
                 Número Whatsapp
               </th>
               <th scope="col" className="px-6 py-3">
-                Premio
+                Nombre Premio
+              </th>
+              <th scope="col" className="px-6 py-3">
+                Tipo Premio
               </th>
               <th scope="col" className="px-6 py-3">
                 Total Puntos A redimir
@@ -156,56 +277,83 @@ useEffect(()=>{
             </tr>
           </thead>
           <tbody>
-            {solicitudesData.length === 0 ? (
-              <p className="text-center text-title mt-10 mb-10">
-                No hay productos disponibles por favor agregue un producto
-              </p>
+            {currentProducts.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="text-center text-title mt-10 mb-10">
+                  No hay productos disponibles por favor agregue un producto
+                </td>
+              </tr>
             ) : (
-              solicitudesData.map((punto, index) => (
+              currentProducts.map((punto, index) => (
                 <tr
                   key={punto.id}
                   className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {punto.idPremio}
+                    {punto.idRedencion}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {punto.fecha}
+                    {punto.fecha
+                      ? new Date(
+                          punto.fecha.seconds * 1000
+                        ).toLocaleDateString()
+                      : "N/A"}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {punto.nombre}
+                 {punto.numerowp}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {punto.numerowp}
+                    {punto.nombrePremio}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {punto.premio}
+                    {punto.tipoPremio}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {punto.puntosAredimir}
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    <span className={punto.estado === "Solicitado" ? "bg-red-100 text-red-800 text-lg font-medium me-2 px-2.5 py-0.5 rounded dark:bg-red-900 dark:text-red-300" : "bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300"}> {punto.estado}</span>
 
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    {punto.puntosRedimidos}
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    <span
+                      className={
+                        punto.estado === "Solicitado"
+                          ? "bg-red-100 text-red-800 text-base font-medium p-1 rounded dark:bg-red-900 dark:text-red-300"
+                          : "bg-green-100 text-green-800 text-base font-medium  p-1 rounded dark:bg-green-900 dark:text-green-300"
+                      }
+                    >
+                      {" "}
+                      {punto.estado}
+                    </span>
                   </td>
                   <td className="px-6 py-4 flex gap-2">
-                    <Tooltip content="Canjear">
+                    <Tooltip
+                      content={
+                        punto.estado === "Solicitado"
+                          ? "Entregar"
+                          : "Ya Entregado"
+                      }
+                    >
                       <button
                         type="button"
-                        className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
+                        onClick={() => handleEntregarPremio(punto.idRedencion)}
+                        className={`text-white font-medium rounded-lg text-sm p-2 text-center inline-flex items-center 
+      ${
+        punto.estado === "Solicitado"
+          ? "bg-green-700 hover:bg-green-500 focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-900"
+          : "bg-gray-400 cursor-not-allowed"
+      }`}
+                        disabled={punto.estado !== "Solicitado"}
                       >
-                        Canjear Puntos
+                        {punto.estado === "Solicitado"
+                          ? "Entregar"
+                          : "Entregado"}
                       </button>
                     </Tooltip>
-
                   </td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
-
-
+          </table>
       </div>
       <div className="mt-2 flex justify-end mx-4">
         <div className="flex items-center space-x-2">
@@ -231,7 +379,7 @@ useEffect(()=>{
         </div>
       </div>
     </Layout>
-  )
+  );
 }
 
-export default RedimirPuntos
+export default RedimirPuntos;

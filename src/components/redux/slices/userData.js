@@ -7,6 +7,7 @@ const initialState = {
   nombreEmpresa: '',
   nit: '',
   naceptado: '',
+  nrechazado: '',
   telefono: '',
   direccion: '',
   role: '',
@@ -25,12 +26,13 @@ export const userSlice = createSlice({
   initialState,
   reducers: {
     setUserData: (state, action) => {
-      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo } = action.payload;
+      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo } = action.payload;
       state.uid = uid;
       state.PuntosporValor = PuntosporValor;
       state.nombreEmpresa = nombreEmpresa;
       state.nit = nit;
       state.naceptado = naceptado;
+      state.nrechazado = nrechazado;
       state.telefono = telefono;
       state.direccion = direccion;
       state.role = role;
@@ -50,6 +52,7 @@ export const userSlice = createSlice({
       state.nombreEmpresa = null;
       state.nit = null;
       state.naceptado = null;
+      state.nrechazado = null;
       state.telefono = null;
       state.direccion = null;
       state.role = null;

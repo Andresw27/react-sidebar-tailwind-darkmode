@@ -49,12 +49,14 @@ const Routers = () => {
       const unsubscribe = onSnapshot(userDocRef, (userDocSnap) => {
         if (userDocSnap.exists()) {
           const dataUser = userDocSnap.data();
+          console.log(dataUser,"holass")
           dispatch(setUserData({
             PuntosporValor: dataUser.PuntosporValor,
             uid: user.uid,
             nombreEmpresa: dataUser.nombreEmpresa,
             nit: dataUser.nit,
             naceptado: dataUser.naceptado,
+            nrechazado: dataUser.nrechazado,
             telefono: dataUser.telefono,
             direccion: dataUser.direccion,
             role: dataUser.role,

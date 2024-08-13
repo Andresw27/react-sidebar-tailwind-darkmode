@@ -37,7 +37,7 @@ const Home = ({ totalValue }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(1);
+  const [rowsPerPage] = useState(10);
   const [valorTotal, setValorTotal] = useState(0);
   const [showAlert, setShowAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);

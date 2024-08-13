@@ -101,26 +101,25 @@ function AdminPuntos() {
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
       );
-
+  
       const querySnapshot = await getDocs(userQuery);
       let uidUser = "";
       querySnapshot.forEach((doc) => {
         uidUser = doc.id;
       });
-
+  
       if (!uidUser) {
         // console.error("Usuario no encontrado");
         return;
       }
-
-      const solicitudesRef = collection(
-        db,
-        "solicitudes",
-        uidUser,
-        "historial",where("tipo", "!=", "Redencion Premios")
+  
+      const solicitudesRef = collection(db, "solicitudes", uidUser, "historial");
+  
+      const solicitudesQuery = query(
+        solicitudesRef,
+        where("tipo", "!=", "Redencion Premios")
       );
-      const solicitudesQuery = query(solicitudesRef);
-
+  
       const unsubscribe = onSnapshot(solicitudesQuery, (snapshot) => {
         const solicitudes = [];
         snapshot.forEach((doc) => {
@@ -130,16 +129,18 @@ function AdminPuntos() {
             solicitudes.push(data);
           }
         });
-
+  
         setDataClientesFactura(solicitudes);
-        // console.log("data recibos", solicitudes);
+  
+        console.log("data recibos", solicitudes);
       });
-
+  
       return () => unsubscribe();
     } catch (error) {
       // console.error("Error al obtener los datos:", error.message);
     }
   };
+  
 
   const getConfig = async () => {
     try {

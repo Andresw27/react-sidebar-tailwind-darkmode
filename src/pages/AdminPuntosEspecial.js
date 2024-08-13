@@ -19,6 +19,7 @@ import {
   collection,
   where,
   getDocs,
+  getDoc,
   onSnapshot,
   doc,
 } from "firebase/firestore";
@@ -33,7 +34,7 @@ function AdminPuntos() {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPagePremio, setCurrentPagePremio] = useState(1);
   const [rowsPerPagePremio] = useState(4);
-  const [dataAcciones, setDataAcciones] = useState([])
+  const [dataAcciones, setDataAcciones] = useState([]);
   const [selectedAction, setSelectedAction] = useState("");
 
   const [rowsPerPage] = useState(5);
@@ -43,20 +44,39 @@ function AdminPuntos() {
   const [selectCliente, setSelectCliente] = useState(null);
 
   //estados de acciones
+  const [selectAccion, setSelectAccion] = useState("");
+  const [AccionEdit, setAccionEdit] = useState("");
+  //estados para actualizar acciones
   const [puntosAccion, setpuntosAccion] = useState("");
   const [nombreAccion, setnombreAccion] = useState("");
-  const [descripcionAccion, setDescripcionAccion] = useState("")
+  const [descripcionAccion, setDescripcionAccion] = useState("");
+
+  //estados para agregar acciones
+  const [newNombreAccion, setNewNombreAccion] = useState("");
+  const [newDescripcionAccion, setNewDescripcionAccion] = useState("");
+  const [newPuntosAccion, setNewPuntosAccion] = useState("");
 
   //estados de premios globales y normales crear
-  const [NewnombrePremioGlobal, setNewnombrePremioGlobal] = useState("")
-  const [NewdescripcionPremioGlobal, setNewdescripcionPremioGlobal] = useState("")
-  const [NewpuntosPremioGlobal,setNewPuntosPremioGlobal]=useState("")
+  const [NewnombrePremioGlobal, setNewnombrePremioGlobal] = useState("");
+  const [NewdescripcionPremioGlobal, setNewdescripcionPremioGlobal] =
+    useState("");
+  const [NewpuntosPremioGlobal, setNewPuntosPremioGlobal] = useState("");
 
   //estados premios especificos nuevos crear
-  const [NewnombrePremioEspe, setNewnombrePremioEspe] = useState("")
-  const [NewdescripcionPremioEspe, setNewdescripcionPremioEspe] = useState("")
-  const [NewpuntosPremioEspe,setNewPuntosPremioEspe]=useState("")
+  const [NewnombrePremioEspe, setNewnombrePremioEspe] = useState("");
+  const [NewdescripcionPremioEspe, setNewdescripcionPremioEspe] = useState("");
+  const [NewpuntosPremioEspe, setNewPuntosPremioEspe] = useState("");
 
+  //estados modal eliminar accion
+  const [openModalDeleteAccion, setOpenModalDeleteAccion] = useState("");
+  const [SelectDeleteAccion, setSelectDeleteAccion] = useState("");
+
+  //estados para eliminar premio
+  const [selectPremioDelete, setSelectPremioDelete] = useState("");
+  const [openModalDeletePremio, setModalDeletePremio] = useState("");
+
+  //estado fetch hook Notificaciones
+  const [formData, setFormData] = useState([]);
 
   const [showAlert, setShowAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
@@ -70,59 +90,59 @@ function AdminPuntos() {
   const [NombrePremio, setNombrePremio] = useState("");
   const [DescripcionPremio, setDescripcionPremio] = useState("");
   const [DataPremios, setDataPremios] = useState("");
-  const { identificador } = useSelector((state) => state.user);
+  const { identificador, idBot, naceptado, nrechazado } = useSelector(
+    (state) => state.user
+  );
   const [dataClientesFactura, setDataClientesFactura] = useState([]);
   const [PremioEdit, setPremioEdit] = useState("");
   const [selectPremioEdit, setselectPremioEdit] = useState(null);
   const [userPaquete, setUserPaquete] = useState(null);
+  const [usuario, setUsuario] = useState("");
   const [ModarAcciones, setModalAcciones] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [openModalPremioGlobal, setopenModalPremioGlobal] = useState("")
-
+  const [openModalPremioGlobal, setopenModalPremioGlobal] = useState("");
+  //Estado Premio GLobal
+  const [PremioGlobal, setPremioGlobal] = useState("");
   // console.log("accione seleccionada2 ",selectedAction)
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userAuth = auth.currentUser;
+        if (userAuth) {
+          const userData = await fetchUserData(userAuth.uid);
 
-  // useEffect(() => {
-  //   const fetchData = async () => {
-  //     try {
-  //       const userAuth = auth.currentUser;
-  //       if (userAuth) {
-  //         const userData = await fetchUserData(userAuth.uid);
+          setUsuario(userData);
+          console.log(usuario.nombreEmpresa, "ddssss");
+          console.log(userData.idBot, "bot");
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
 
-  //         setUserPaquete(userData.paquete);
-  //         console.log(userPaquete, "ddssss");
-  //       }
-  //     } catch (error) {
-  //       console.error("Error fetching user data:", error);
-  //     }
-  //   };
-
-  //   fetchData();
-  // }, []);
+    fetchData();
+  }, []);
 
   const handleDropdownToggle = () => {
     setDropdownOpen((prev) => !prev);
   };
 
-
   //modal para configurar premios globales
 
   const openModalpremiosGlobal = () => {
-
     setopenModalPremioGlobal(true);
     setDropdownOpen(false);
-  }
+  };
 
   const ClosedModalpremiosGlobal = () => {
-
     setopenModalPremioGlobal(false);
-  }
-
-
+  };
 
   //modal para abrir y ver acciones
   const openModalAcciones = () => {
     setModalAcciones(true);
+    setDropdownOpen(false);
   };
 
   const CloseModalAcciones = () => {
@@ -166,22 +186,21 @@ function AdminPuntos() {
         return;
       }
 
-      const accionesRef = collection(
-        db,
-        "solicitudes",
-        uidUser,
-        "historial",where("tipo", "!=", "Redencion Premios")
+      const accionesRef = collection(db, "solicitudes", uidUser, "historial");
+
+      // Asegúrate de incluir los criterios correctos en la consulta
+      const accionesQuery = query(
+        accionesRef,
+        where("estado", "==", "Solicitado"),
+        where("tipo", "==", "especial")
       );
-      const accionesQuery = query(accionesRef);
 
       const unsubscribe = onSnapshot(accionesQuery, (snapshot) => {
         const solicitudes = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
           data.id = doc.id;
-          if (data.estado === "Solicitado") {
-            solicitudes.push(data);
-          }
+          solicitudes.push(data);
         });
 
         setDataClientesFactura(solicitudes);
@@ -218,7 +237,7 @@ function AdminPuntos() {
           const data = doc.data();
           acciones.push({
             id: doc.id,
-            ...data
+            ...data,
           });
         });
 
@@ -231,7 +250,6 @@ function AdminPuntos() {
       // console.error("Error al obtener los datos:", error.message);
     }
   };
-
 
   const getConfig = async () => {
     try {
@@ -284,9 +302,9 @@ function AdminPuntos() {
     e.preventDefault();
 
     const formDataActions = {
-      nombre: nombreAccion,
-      puntos: puntosAccion,
-      descripcion: descripcionAccion
+      nombre: newNombreAccion,
+      puntos: newPuntosAccion,
+      descripcion: newDescripcionAccion,
     };
 
     try {
@@ -302,17 +320,23 @@ function AdminPuntos() {
       );
 
       if (!response.ok) {
+        setAlertMessage("Error configurando la accion. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+
         throw new Error("Failed to configure points");
       }
-      setAlertMessage("Puntos configurados correctamente");
+      setAlertMessage("Accion configurada correctamente");
       setShowAlert(true);
-      setnombreAccion("");
-      setpuntosAccion("");
-      setDescripcionAccion("")
+      setNewDescripcionAccion("");
+      setNewPuntosAccion("");
+      setNewNombreAccion("");
       closePuntosModal();
     } catch (error) {
       // console.error("Error configuring points:", error);
-      setAlertMessage("Error configurando los puntos. Inténtalo nuevamente.", error.message);
+      setAlertMessage(
+        "Error configurando la accion. Inténtalo nuevamente.",
+        error.message
+      );
       setShowErrorAlert(true);
     }
   };
@@ -347,66 +371,114 @@ function AdminPuntos() {
   //Modal configurar puntos
   const openPuntosModal = () => {
     setPuntosModalOpen(true);
+    setDropdownOpen(false);
   };
 
   const closePuntosModal = () => {
     setPuntosModalOpen(false);
   };
+  //funcion declinar
+  // const handleDecline = (cliente) => {
+  //   setDataClientesFactura((prevData) =>
+  //     prevData.filter((item) => item.idCliente !== cliente.idCliente)
+  //   );
+  //   closeEditModal();
+  //   // console.log("ddd", cliente);
+  // };
+  //aprobar solicitud de puntos
 
-  const handleDecline = (cliente) => {
-    setDataClientesFactura((prevData) =>
-      prevData.filter((item) => item.idCliente !== cliente.idCliente)
+  const HandleAprovedCliente = async (cliente, estado) => {
+    console.log(
+      "Cliente aprobado",
+      cliente,
+      "acción seleccionada",
+      selectedAction
     );
-    closeEditModal();
-    // console.log("ddd", cliente);
-  };
-
-  const HandleAprovedCliente = async (cliente) => {
-    console.log("Cliente aprobado", cliente, "accion seleccionada", selectedAction);
+    console.log(estado, "estado");
 
     const clienteAprobado = {
-      fecha: "10/08/2024",
+      fecha: "12/08/2024",
       nombre: cliente.nombre,
       puntos: selectedAction,
-      estado: "Aprobado",
+      estado: estado,
     };
 
+    if (estado === "Aceptado") {
+      setFormData({
+        idBot: idBot,
+        plantilla: naceptado,
+        nombre: cliente.nombre,
+        celular: cliente.numerowp,
+        idSolicitud: cliente.idSolicitud,
+        puntos: selectedAction,
+        accion: selectAccion,
+        flag: "1",
+      });
+    } else if (estado === "Rechazado") {
+      setFormData({
+        idBot: idBot,
+        plantilla: nrechazado,
+        nombre: cliente.nombre,
+        celular: cliente.numerowp,
+        flag: "3",
+      });
+    }
 
-
-    console.info("Cliente", cliente.id, cliente.numerowp);
+    console.log(formData, "formdata");
 
     try {
-      const response = await fetch(
+      // Primer fetch para enviar el formData
+      const response1 = await fetch(
+        "https://hook.us1.make.com/39p4vx3px9r7xl4myp3hcmvoonucp39t",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      if (!response1.ok) {
+        throw new Error("Failed to send form data");
+      }
+
+      // Segundo fetch para actualizar la solicitud
+      const response2 = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${identificador}/${cliente.id}/${cliente.numerowp}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(clienteAprobado), // Convierte el objeto en una cadena JSON
+          body: JSON.stringify(clienteAprobado),
         }
       );
 
-      if (!response.ok) {
+      if (!response2.ok) {
         throw new Error("Failed to approve client points");
       }
 
+      // Manejo del contenido de la respuesta
+      const contentType = response2.headers.get("content-type");
+      if (contentType.includes("application/json")) {
+        const result = await response2.json();
+        console.log("Response JSON:", result);
+      } else if (contentType.includes("text/plain")) {
+        const textResponse = await response2.text();
+        console.log("Text response:", textResponse);
+      } else {
+        throw new Error("Unexpected response format");
+      }
+
+      // Mensaje de éxito y cierre del modal
       setAlertMessage("Cliente aprobado correctamente");
       setShowAlert(true);
       closeEditModal();
-
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        const result = await response.json();
-        // console.log("Response JSON:", result); // Maneja el resultado según sea necesario
-      } else {
-        const textResponse = await response.text(); // Lee la respuesta como texto
-        // console.error("Non-JSON response:", textResponse); // Registra la respuesta no JSON
-        throw new Error("Received non-JSON response");
-      }
     } catch (error) {
-      // console.error("Error approving client points:", error);
-      setAlertMessage("Cliente aprobado correctamente.");
+      // Manejo de errores
+      console.error("Error approving client points:", error);
+      setAlertMessage("Error al aprobar cliente.");
       setShowAlert(true);
     }
   };
@@ -449,6 +521,7 @@ function AdminPuntos() {
   const paginatePremio = (pageNumber) => setCurrentPagePremio(pageNumber);
 
   //Obtener Premios del cliente
+  // Obtener Premios del cliente
   const fetchPremios = async () => {
     try {
       const userQuery = query(
@@ -472,30 +545,29 @@ function AdminPuntos() {
 
       const premios = [];
 
-
       const unsubscribe1 = onSnapshot(premiosGlobalesDocRef, (doc) => {
         if (doc.exists()) {
           premios.push({
             tipo: "global",
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
           });
         } else {
           console.error("No se encontraron premios globales.");
         }
       });
 
-
       const unsubscribe2 = onSnapshot(userDocRef, (querySnapshot) => {
         querySnapshot.forEach((doc) => {
           premios.push({
             id: doc.id,
-            ...doc.data()});
+            ...doc.data(),
+          });
         });
       });
 
-      console.log("premios: ", premios)
-      setDataPremios(premios)
+      console.log("premios: ", premios);
+      setDataPremios(premios);
 
       return { premios, unsubscribe1, unsubscribe2 };
     } catch (error) {
@@ -503,20 +575,70 @@ function AdminPuntos() {
     }
   };
 
+  // Obtiene el premio global del cliente
+  const obtenerPremioGlobal = async (identificador) => {
+    try {
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return null;
+      }
+
+      const premiosGlobalesDocRef = doc(db, "premiosGlobales", uidUser);
+
+      const premioGlobal = await getDoc(premiosGlobalesDocRef); // Cambiado a getDoc
+
+      if (premioGlobal.exists()) {
+        const premioGlobalData = {
+          tipo: "global",
+          id: premioGlobal.id,
+          ...premioGlobal.data(),
+        };
+        console.log("Premio Global: ", premioGlobalData);
+        return premioGlobalData;
+      } else {
+        console.error("No se encontró un premio global.");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error al obtener el premio global:", error.message);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const fetchPremioGlobal = async () => {
+      const premioData = await obtenerPremioGlobal(identificador);
+      setPremioGlobal(premioData);
+    };
+
+    if (identificador) {
+      fetchPremioGlobal();
+      fetchPremios(identificador);
+    }
+  }, [identificador]); // Asegúrate de que identificador esté en las dependencias
 
   const IdPremio = DataPremios.id;
-  useEffect(() => {
-    fetchPremios();
-  }, []);
 
-  //Funcion para agregar premios
-  const handleSubmitPremio = async (e) => {
+  //Funcion para agregar premios Especifico
+  const handleSubmitPremioEspecifico = async (e) => {
     e.preventDefault();
 
     const newProduct = {
       nombre: NewnombrePremioEspe,
       descripcion: NewdescripcionPremioEspe,
       costoPuntos: NewpuntosPremioEspe,
+      nombreRestaurante: usuario.nombreEmpresa,
     };
 
     try {
@@ -556,9 +678,52 @@ function AdminPuntos() {
     }
   };
 
+  //Funcion para agregar premio Global
+  const handleSubmitPremioGlobal = async (e) => {
+    e.preventDefault();
+
+    const newPremioGlobal = {
+      nombre: NewnombrePremioGlobal,
+      descripcion: NewdescripcionPremioGlobal,
+      costoPuntos: NewpuntosPremioGlobal,
+      nombreRestaurante: usuario.nombreEmpresa,
+    };
+
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premioGlobal/new/${identificador}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newPremioGlobal),
+        }
+      );
+
+      if (!response.ok) {
+        setAlertMessage(
+          "Error al registrar el producto. Inténtalo nuevamente."
+        );
+        setShowErrorAlert(true);
+      } else {
+        setAlertMessage("Premio configurado con éxito");
+        setShowAlert(true);
+        setNewnombrePremioGlobal("");
+        setNewdescripcionPremioGlobal("");
+        setNewPuntosPremioGlobal("");
+        ClosedModalpremiosGlobal();
+        fetchPremios();
+      }
+    } catch (error) {
+      console.error("Error registering product:", error);
+    }
+  };
+
   //editarPremios
   const openModalEditPremios = (premio) => {
     setselectPremioEdit(premio);
+    console.log(premio.tipo);
     setNombrePremio(premio.nombre);
     setCantidadPuntos(premio.costoPuntos);
     setDescripcionPremio(premio.descripcion);
@@ -570,16 +735,91 @@ function AdminPuntos() {
     setPremioEdit(false);
     setselectPremioEdit(null);
   };
-
-  const handleEditPremio = async (e) => {
-    e.preventDefault();
-
+  //editar premio especifico
+  const handleEditPremio = async () => {
     if (!selectPremioEdit) {
-      console.error("No product to edit");
+      console.error("No hay premio para editar");
       return;
     }
-    console.log("selectedPremio:", selectPremioEdit )
+
     const updatedProduct = {
+      ...selectPremioEdit,
+      nombre: NombrePremio,
+      descripcion: DescripcionPremio,
+      costoPuntos: CantidadPuntos,
+    };
+
+    if (selectPremioEdit.tipo != "global") {
+      try {
+        const response = await fetch(
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/update/${identificador}/${selectPremioEdit.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updatedProduct),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Error al actualizar el premio específico");
+        }
+
+        setAlertMessage("Premio actualizado con éxito");
+        setShowAlert(true);
+        ClosedModalEditPremios();
+        fetchPremios();
+      } catch (error) {
+        setAlertMessage("Error al actualizar el premio. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+        console.error("Error actualizando el premio:", error);
+      }
+    } else {
+      const updatedProduct = {
+        ...selectPremioEdit,
+        nombre: NombrePremio,
+        descripcion: DescripcionPremio,
+        costoPuntos: CantidadPuntos,
+      };
+      try {
+        const response = await fetch(
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/premioGlobal/update/${identificador}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updatedProduct),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Error al actualizar el premio global");
+        }
+
+        setAlertMessage("Premio global actualizado con éxito");
+        setShowAlert(true);
+        ClosedModalEditPremios();
+        fetchPremios();
+      } catch (error) {
+        setAlertMessage(
+          "Error al actualizar el premio global. Inténtalo nuevamente."
+        );
+        setShowErrorAlert(true);
+        console.error("Error actualizando el premio global:", error);
+      }
+    }
+  };
+
+  //editar premioGlobal
+  const handleEditPremioGlobal = async () => {
+    if (!selectPremioEdit) {
+      console.error("No hay premio para editar");
+      return;
+    }
+
+    const updatedPremioGlobal = {
       ...selectPremioEdit,
       nombre: NombrePremio,
       descripcion: DescripcionPremio,
@@ -588,7 +828,65 @@ function AdminPuntos() {
 
     try {
       const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/update/${identificador}/${selectPremioEdit.id}`,
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/premioGlobal/update/${identificador}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedPremioGlobal),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar el premio global");
+      }
+
+      setAlertMessage("Premio global actualizado con éxito");
+      setShowAlert(true);
+      ClosedModalEditPremios();
+      fetchPremios();
+    } catch (error) {
+      setAlertMessage(
+        "Error al actualizar el premio global. Inténtalo nuevamente."
+      );
+      setShowErrorAlert(true);
+      console.error("Error actualizando el premio global:", error);
+    }
+  };
+  const openModalEditAcciones = (accion) => {
+    setSelectAccion(accion);
+    setnombreAccion(accion.nombre);
+    setpuntosAccion(accion.puntos);
+    setDescripcionAccion(accion.descripcion);
+    setAccionEdit(true);
+    console.log("Editing accion:", accion); // Log to verify prize data
+  };
+
+  const ClosedModalEditAcciones = () => {
+    setAccionEdit(false);
+    setSelectAccion(null);
+  };
+
+  //funcion editar accion
+  const handleEditaAccion = async (e) => {
+    e.preventDefault();
+
+    if (!selectAccion) {
+      console.error("No product to edit");
+      return;
+    }
+
+    const updatedProduct = {
+      ...selectedAction,
+      nombre: nombreAccion,
+      descripcion: descripcionAccion,
+      puntos: puntosAccion,
+    };
+
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/actions/update/${identificador}/${selectAccion.id}`,
         {
           method: "PUT",
           headers: {
@@ -598,20 +896,124 @@ function AdminPuntos() {
         }
       );
 
+      const responseW = await response.text();
+      console.log("Respuesta", responseW);
+
       if (!response.ok) {
         throw new Error("Failed to update product");
       }
 
-      setAlertMessage("Producto actualizado con éxito");
+      setAlertMessage("Accion actualizada con éxito");
       setShowAlert(true);
-      ClosedModalEditPremios(); // Close the modal after a successful edit
-      fetchPremios(); // Refresh the prize data
+      fetchAccciones(); // Primero actualiza las acciones
+      ClosedModalEditAcciones(); // Luego cierra el modal
     } catch (error) {
-      setAlertMessage("Error al editar el producto. Inténtalo nuevamente.");
+      setAlertMessage(
+        `Error al editar la accion. Inténtalo nuevamente. ${error.message}`
+      );
       setShowErrorAlert(true);
-      console.error("Error updating product:", error);
+      console.error("Error updating product:", error.message);
     }
   };
+  //modal para eliminar acciones
+
+  const OpenDeleteAccionModal = (accion) => {
+    setSelectDeleteAccion(accion);
+    setOpenModalDeleteAccion(true);
+    console.log(accion, "accionDelete");
+  };
+
+  const ClosedDeleteAccionModal = () => {
+    setSelectDeleteAccion(null);
+    setOpenModalDeleteAccion(false);
+  };
+
+  // funcion para eliminar accion
+  const handleDeleteAccion = async () => {
+    if (!SelectDeleteAccion) return;
+
+    try {
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/actions/delete/${identificador}/${SelectDeleteAccion.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        setAlertMessage("Error al eliminar el producto. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+        ClosedDeleteAccionModal();
+      }
+
+      setAlertMessage("Accion eliminada con éxito");
+      setShowAlert(true);
+      fetchAccciones();
+      ClosedDeleteAccionModal();
+    } catch (error) {}
+  };
+
+  //modals y funcion para delete premio
+
+  const openModalPremio = (premio) => {
+    setSelectPremioDelete(premio);
+    setModalDeletePremio(true);
+    console.log("premiodelete", premio);
+  };
+  const ClosedModalPremio = () => {
+    setSelectPremioDelete(null);
+    setModalDeletePremio(false);
+  };
+  const handleDeletePremio = async () => {
+    if (!selectPremioDelete) return;
+
+    console.log("selececrte", selectPremioDelete);
+
+    if (selectPremioDelete.tipo != "global") {
+      try {
+        const response = await fetch(
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/premios/eliminar/${identificador}/${selectPremioDelete.id}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!response.ok) {
+          setAlertMessage("Error al eliminar el premio. Inténtalo nuevamente.");
+          setShowErrorAlert(true);
+          ClosedModalPremio();
+        }
+
+        setAlertMessage("Premio eliminada con éxito");
+        setShowAlert(true);
+        fetchPremios();
+        ClosedModalPremio();
+      } catch (error) {}
+    } else {
+      try {
+        const response = await fetch(
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/premioGlobal/delete/${identificador}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!response.ok) {
+          setAlertMessage("Error al eliminar el premio. Inténtalo nuevamente.");
+          setShowErrorAlert(true);
+          ClosedModalPremio();
+        }
+
+        setAlertMessage("Premio eliminada con éxito");
+        setShowAlert(true);
+        fetchPremios();
+        ClosedModalPremio();
+      } catch (error) {}
+    }
+  };
+
+
+  
   return (
     <Layout>
       {showAlert && (
@@ -738,72 +1140,74 @@ function AdminPuntos() {
                           configuré una acción
                         </p>
                       ) : (
-                        dataAcciones.map((premio, index) => (
+                        dataAcciones.map((accion, index) => (
                           <tr
                             key={index}
                             className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                           >
                             <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white">
-                              {premio.nombre}
+                              {accion.nombre}
                             </td>
                             <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white">
-                              {premio.descripcion}
+                              {accion.descripcion}
                             </td>
                             <td className="px-4  py-4 font-semibold text-gray-900 dark:text-white">
-                              {premio.puntos}
+                              {accion.puntos}
                             </td>
                             <td className="px-3 py-4 flex gap-2">
                               <Tooltip content="Editar">
                                 <button
                                   type="button"
-                                  onClick={() => openModalEditPremios(premio)}
+                                  onClick={() => openModalEditAcciones(accion)}
                                   className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
                                 >
                                   <FaRegEdit />
                                 </button>
                               </Tooltip>
                               <Modal
-                                nombre={"Actualizar Premio"}
-                                isOpen={PremioEdit}
-                                onClose={ClosedModalEditPremios}
+                                nombre={"Actualizar Accion"}
+                                isOpen={AccionEdit}
+                                onClose={ClosedModalEditAcciones}
                                 size="auto"
+                                Fondo="auto"
                               >
                                 <form
                                   className="space-y-4 my-10 "
-                                  onSubmit={handleEditPremio}
+                                  onSubmit={handleEditaAccion}
                                 >
                                   <div className="md:w-1/2 px-3 mb-6 md:mb-0">
                                     <label
                                       htmlFor="number"
                                       className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                     >
-                                      Nombre Premio
+                                      Nombre accion
                                     </label>
                                     <input
                                       type="text"
                                       onChange={(e) =>
-                                        setNombrePremio(e.target.value)
+                                        setnombreAccion(e.target.value)
                                       }
-                                      value={NombrePremio}
-                                      id="NombrePremio"
+                                      value={nombreAccion}
+                                      id="nombreAccion"
                                       className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                                       required
                                     />
                                   </div>
                                   <div className="md:w-1/2 px-3 mb-6 md:mb-0">
                                     <label
-                                      htmlFor="number"
+                                      htmlFor="text"
                                       className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                     >
-                                      Descripción Premio
+                                      Descripción accion
                                     </label>
                                     <input
                                       type="text"
+                                      name="descripcionAccion"
                                       onChange={(e) =>
-                                        setDescripcionPremio(e.target.value)
+                                        setDescripcionAccion(e.target.value)
                                       }
-                                      value={DescripcionPremio}
-                                      id="DescripcionPremio"
+                                      value={descripcionAccion}
+                                      id="descripcionAccion"
                                       className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                                       required
                                     />
@@ -818,10 +1222,10 @@ function AdminPuntos() {
                                     <input
                                       type="number"
                                       onChange={(e) =>
-                                        setCantidadPuntos(e.target.value)
+                                        setpuntosAccion(e.target.value)
                                       }
-                                      value={CantidadPuntos}
-                                      id="CantidadPuntos"
+                                      value={puntosAccion}
+                                      id="puntosAccion"
                                       className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                                       required
                                     />
@@ -838,12 +1242,50 @@ function AdminPuntos() {
                               <Tooltip content="Eliminar">
                                 <button
                                   type="button"
-                                  // onClick={() => openModall(product)}
+                                  onClick={() => OpenDeleteAccionModal(accion)}
                                   className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
                                 >
                                   <FaRegTrashAlt />
                                 </button>
                               </Tooltip>
+
+                              <Modal
+                                nombre="Eliminar Accion"
+                                isOpen={openModalDeleteAccion}
+                                onClose={ClosedDeleteAccionModal}
+                                size="auto"
+                              >
+                                {SelectDeleteAccion && (
+                                  <div className="mt-4">
+                                    <p>
+                                      ¿Estás seguro de que deseas eliminar esta
+                                      accion llamada{" "}
+                                      <span className="font-semibold">
+                                        {SelectDeleteAccion.nombre}
+                                      </span>{" "}
+                                      y total de puntos{" "}
+                                      <span className="font-semibold">
+                                        {SelectDeleteAccion.puntos}
+                                      </span>
+                                      ?
+                                    </p>
+                                    <div className="flex justify-end gap-2 mt-4">
+                                      <button
+                                        onClick={handleDeleteAccion}
+                                        className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                                      >
+                                        Eliminar
+                                      </button>
+                                      <button
+                                        onClick={ClosedDeleteAccionModal}
+                                        className="text-white bg-gray-500 hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-gray-400 dark:hover:bg-gray-500 dark:focus:ring-gray-600"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </Modal>
                             </td>
                           </tr>
                         ))
@@ -892,9 +1334,12 @@ function AdminPuntos() {
               isOpen={PuntosModalOpen}
               onClose={closePuntosModal}
               size="auto"
-              Fondo="auto"
+              Fondo="none"
             >
-              <form className="space-y-6 my-5 px-2" onSubmit={handleSubmitActions}>
+              <form
+                className="space-y-6 my-5 px-2"
+                onSubmit={handleSubmitActions}
+              >
                 <div>
                   <label
                     htmlFor="nombreAccion"
@@ -904,9 +1349,9 @@ function AdminPuntos() {
                   </label>
                   <input
                     type="text"
-                    onChange={(e) => setnombreAccion(e.target.value)}
-                    value={nombreAccion}
-                    id="nombreAccion"
+                    onChange={(e) => setNewNombreAccion(e.target.value)}
+                    value={newNombreAccion}
+                    id="newNombreAccion"
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Ingresa el nombre de la acción"
                     required
@@ -922,8 +1367,8 @@ function AdminPuntos() {
                   </label>
                   <input
                     type="text"
-                    onChange={(e) => setDescripcionAccion(e.target.value)}
-                    value={descripcionAccion}
+                    onChange={(e) => setNewDescripcionAccion(e.target.value)}
+                    value={newDescripcionAccion}
                     id="descripcionAccion"
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Describe brevemente la acción"
@@ -940,8 +1385,8 @@ function AdminPuntos() {
                   </label>
                   <input
                     type="number"
-                    onChange={(e) => setpuntosAccion(e.target.value)}
-                    value={puntosAccion}
+                    onChange={(e) => setNewPuntosAccion(e.target.value)}
+                    value={newPuntosAccion}
                     id="puntos"
                     className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Especifica los puntos por acción"
@@ -957,7 +1402,6 @@ function AdminPuntos() {
                 </button>
               </form>
             </Modal>
-
 
             <Tooltip content="Configurar Premios">
               <div
@@ -993,9 +1437,12 @@ function AdminPuntos() {
             isOpen={Openmodalpremios}
             onClose={ClosedModalPremios}
             size="auto"
-            Fondo="auto"
+            Fondo="none"
           >
-            <form className="space-y-6 my-8 px-6" onSubmit={handleSubmitPremio}>
+            <form
+              className="space-y-6 my-8 px-6"
+              onSubmit={handleSubmitPremioEspecifico}
+            >
               <div className="md:w-full mb-4">
                 <label
                   htmlFor="NombrePremio"
@@ -1059,13 +1506,12 @@ function AdminPuntos() {
             </form>
           </Modal>
 
-
           <Modal
             nombre="Premios"
             isOpen={openViewPremios}
             onClose={ClosedModalViewPremios}
             size="fixed"
-            Fondo="auto"
+            Fondo="none"
           >
             <div className="col-span-2 relative overflow-x-auto shadow-md mx-4 sm:rounded-lg ">
               <div className="flex justify-between items-center p-4">
@@ -1100,6 +1546,14 @@ function AdminPuntos() {
                     </div>
                   )}
                 </div>
+
+                <div className="flex flex-col justify-center items-center bg-slate-100 rounded-full p-2">
+                  <div>Premio Global</div>
+                  <div className="flex gap-2 justify-center items-center">
+                    {PremioGlobal && <p>{PremioGlobal.nombre}</p>}
+                    {PremioGlobal && <p>{PremioGlobal.costoPuntos}</p>}
+                  </div>
+                </div>
               </div>
               <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -1114,7 +1568,7 @@ function AdminPuntos() {
                       Cantidad de puntos
                     </th>
                     <th scope="col" className="px-4 py-3">
-                      Acciónnnnn
+                      Acción
                     </th>
                   </tr>
                 </thead>
@@ -1137,100 +1591,167 @@ function AdminPuntos() {
                           {premio.descripcion}
                         </td>
                         <td className="px-4  py-4 font-semibold text-gray-900 dark:text-white">
-                          {premio.tipo === "global" ? (<FaCrown />) : null} {premio.costoPuntos}
+                          {premio.tipo === "global" ? <FaCrown /> : null}{" "}
+                          {premio.costoPuntos}
                         </td>
                         <td className="px-3 py-4 flex gap-2">
-                          <Tooltip content="Editar">
-                            <button
-                              type="button"
-                              onClick={() => openModalEditPremios(premio)}
-                              className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
-                            >
-                              <FaRegEdit />
-                            </button>
-                          </Tooltip>
+                          {premio.tipo === "global" ? (
+                            <Tooltip content="Editar">
+                              <button
+                                type="button"
+                                onClick={() => openModalEditPremios(premio)}
+                                className="text-white bg-red-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
+                              >
+                                <FaRegEdit />
+                              </button>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip content="Editar">
+                              <button
+                                type="button"
+                                onClick={() => openModalEditPremios(premio)}
+                                className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
+                              >
+                                <FaRegEdit />
+                              </button>
+                            </Tooltip>
+                          )}
+
                           <Modal
-                            nombre={"Actualizar Premio"}
+                            nombre={"Actualizar Premios"}
                             isOpen={PremioEdit}
                             onClose={ClosedModalEditPremios}
                             size="auto"
+                            Fondo="auto"
                           >
-                            <form
-                              className="space-y-4 my-10 "
-                              onSubmit={handleEditPremio}
-                            >
-                              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                                <label
-                                  htmlFor="number"
-                                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                >
-                                  Nombre 
-                                </label>
-                                <input
-                                  type="text"
-                                  onChange={(e) =>
-                                    setNombrePremio(e.target.value)
-                                  }
-                                  value={NombrePremio}
-                                  id="NombrePremio"
-                                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                  required
-                                />
-                              </div>
-                              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                                <label
-                                  htmlFor="number"
-                                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                >
-                                  Descripción
-                                </label>
-                                <input
-                                  type="text"
-                                  onChange={(e) =>
-                                    setDescripcionPremio(e.target.value)
-                                  }
-                                  value={DescripcionPremio}
-                                  id="DescripcionPremio"
-                                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                  required
-                                />
-                              </div>
-                              <div className="md:w-1/2 px-3 mb-6 md:mb-0">
-                                <label
-                                  htmlFor="number"
-                                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                                >
-                                  Cantidad de puntos
-                                </label>
-                                <input
-                                  type="number"
-                                  onChange={(e) =>
-                                    setCantidadPuntos(e.target.value)
-                                  }
-                                  value={CantidadPuntos}
-                                  id="CantidadPuntos"
-                                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                  required
-                                />
-                              </div>
-
+                            <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                              <label
+                                htmlFor="number"
+                                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                              >
+                                Nombre
+                              </label>
+                              <input
+                                type="text"
+                                onChange={(e) =>
+                                  setNombrePremio(e.target.value)
+                                }
+                                value={NombrePremio}
+                                id="NombrePremio"
+                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                required
+                              />
+                            </div>
+                            <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                              <label
+                                htmlFor="number"
+                                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                              >
+                                Descripción
+                              </label>
+                              <input
+                                type="text"
+                                onChange={(e) =>
+                                  setDescripcionPremio(e.target.value)
+                                }
+                                value={DescripcionPremio}
+                                id="DescripcionPremio"
+                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                required
+                              />
+                            </div>
+                            <div className="md:w-1/2 px-3 mb-6 md:mb-0">
+                              <label
+                                htmlFor="number"
+                                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                              >
+                                Cantidad de puntos
+                              </label>
+                              <input
+                                type="number"
+                                onChange={(e) =>
+                                  setCantidadPuntos(e.target.value)
+                                }
+                                value={CantidadPuntos}
+                                id="CantidadPuntos"
+                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-80 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                                required
+                              />
+                            </div>
+                            {premio.tipo === "global" ? (
                               <button
-                                type="submit"
+                                onClick={handleEditPremioGlobal}
                                 className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                               >
-                                Actualizar
+                                Actualizar global
                               </button>
-                            </form>
+                            ) : (
+                              <button
+                                onClick={handleEditPremio}
+                                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                              >
+                                Actualizar Premio especifico
+                              </button>
+                            )}
                           </Modal>
+
                           <Tooltip content="Eliminar">
                             <button
                               type="button"
-                              // onClick={() => openModall(product)}
+                              onClick={() => openModalPremio(premio)}
                               className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
                             >
                               <FaRegTrashAlt />
                             </button>
                           </Tooltip>
+
+                          <Modal
+                            isOpen={openModalDeletePremio}
+                            onClose={ClosedModalPremio}
+                            Fondo="auto"
+                            size="auto"
+                          >
+                            {selectPremioDelete && (
+                              <div className="mt-4">
+                                <p>
+                                  ¿Estás seguro de que deseas eliminar este
+                                  premio llamado{" "}
+                                  <span className="font-semibold">
+                                    {selectPremioDelete.nombre}
+                                  </span>{" "}
+                                  y su total de puntos{" "}
+                                  <span className="font-semibold">
+                                    {selectPremioDelete.costoPuntos}
+                                  </span>
+                                  ?
+                                </p>
+                                <div className="flex justify-end gap-2 mt-4">
+                                  {premio.tipo === "global" ? (
+                                    <button
+                                      onClick={handleDeletePremio}
+                                      className="text-white bg-yellow-300 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                                    >
+                                      Eliminar
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={handleDeletePremio}
+                                      className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                                    >
+                                      Eliminar
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={ClosedModalPremio}
+                                    className="text-white bg-gray-500 hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-gray-400 dark:hover:bg-gray-500 dark:focus:ring-gray-600"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </Modal>
                         </td>
                       </tr>
                     ))
@@ -1271,16 +1792,16 @@ function AdminPuntos() {
           >
             <span
               onClick={openModalPremios}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer">
-
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer"
+            >
               Premios Especificos
             </span>
 
             <div className="py-2">
               <span
                 onClick={openModalpremiosGlobal}
-
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer">
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white cursor-pointer"
+              >
                 Premio Global
               </span>
             </div>
@@ -1289,42 +1810,39 @@ function AdminPuntos() {
         <Modal
           // acciononClick={openModalViewPremios}
           nombre={"Configurar Premio Global"}
-          conteTooltip={"Ver Premios"}
-          accion={<IoEye className="text-indigo-700 hover:text-white" />}
           isOpen={openModalPremioGlobal}
           onClose={ClosedModalpremiosGlobal}
           size="auto"
-          Fondo="auto"
+          Fondo="none"
         >
-          <form className="space-y-4 my-10" onSubmit={handleSubmitPremio}>
+          <form className="space-y-4 my-10" onSubmit={handleSubmitPremioGlobal}>
             <div className="md:w-full px-3 mb-6 md:mb-0">
               <label
-                htmlFor="number"
+                htmlFor=""
                 className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
                 Nombre Premio
               </label>
               <input
                 type="text"
-                onChange={(e) => setNombrePremio(e.target.value)}
-                value={NombrePremio}
-                id="NombrePremio"
+                onChange={(e) => setNewnombrePremioGlobal(e.target.value)}
+                value={NewnombrePremioGlobal}
+                id="NewnombrePremioGlobal"
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                required
               />
             </div>
             <div className="md:w-full px-3 mb-6 md:mb-0">
               <label
-                htmlFor="number"
+                htmlFor="text"
                 className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
                 Descripción del premio
               </label>
               <input
                 type="text"
-                onChange={(e) => setDescripcionPremio(e.target.value)}
-                value={DescripcionPremio}
-                id="DescripcionPremio"
+                onChange={(e) => setNewdescripcionPremioGlobal(e.target.value)}
+                value={NewdescripcionPremioGlobal}
+                id="NewdescripcionPremioGlobal"
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                 required
               />
@@ -1338,9 +1856,9 @@ function AdminPuntos() {
               </label>
               <input
                 type="number"
-                onChange={(e) => setCantidadPuntos(e.target.value)}
-                value={CantidadPuntos}
-                id="CantidadPuntos"
+                onChange={(e) => setNewPuntosPremioGlobal(e.target.value)}
+                value={NewpuntosPremioGlobal}
+                id="NewpuntosPremioGlobal"
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                 required
               />
@@ -1350,11 +1868,11 @@ function AdminPuntos() {
               type="submit"
               className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
             >
-              Configurar Premio
+              Configurar Premio Global
             </button>
           </form>
         </Modal>
-        <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400  h-80">
+        <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400  ">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
               <th scope="col" className="px-6 py-3">
@@ -1380,7 +1898,7 @@ function AdminPuntos() {
               </th>
               <th
                 scope="col"
-                hidden={userPaquete != "JeicyEspecial" ? true : false}
+                hidden={userPaquete === "JeicyEspecial" ? true : false}
                 className="px-6 py-3"
               >
                 Estado
@@ -1415,8 +1933,10 @@ function AdminPuntos() {
                 {/* <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.descripcion}
                 </td> */}
-                <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                  Validar accion
+                <td className=" py-4 font-semibold text-gray-900 dark:text-white">
+                  <p className="bg-red-100 text-red-800 text-base font-medium text-center  rounded dark:bg-red-900 dark:text-red-300">
+                    {cliente.estado}
+                  </p>
                 </td>
                 {/* <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.descripcion}
@@ -1444,7 +1964,7 @@ function AdminPuntos() {
           isOpen={editModalOpen}
           nombre="Validar Puntos Cliente"
           onClose={closeEditModal}
-          Fondo="auto"
+          Fondo="none"
         >
           {selectCliente && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start p-6">
@@ -1453,49 +1973,83 @@ function AdminPuntos() {
               </div>
               <div className="flex flex-col gap-6 bg-white p-4 rounded-lg shadow-md">
                 <div className="flex flex-col">
-                  <p className="text-lg font-semibold text-gray-700">Nombre Cliente:</p>
-                  <p className="text-lg text-gray-800">{selectCliente.nombre}</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    Nombre Cliente:
+                  </p>
+                  <p className="text-lg text-gray-800">
+                    {selectCliente.nombre}
+                  </p>
                 </div>
 
                 <div className="flex flex-col">
-                  <p className="text-lg font-semibold text-gray-700">Número WhatsApp:</p>
-                  <p className="text-lg text-gray-800">{selectCliente.numerowp}</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    Número WhatsApp:
+                  </p>
+                  <p className="text-lg text-gray-800">
+                    {selectCliente.numerowp}
+                  </p>
                 </div>
 
                 <div className="flex flex-col">
-                  <p className="text-lg font-semibold text-gray-700">Descripción:</p>
-                  <p className="text-lg text-gray-800">{selectCliente.descripcion}</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    Descripción:
+                  </p>
+                  <p className="text-lg text-gray-800">
+                    {selectCliente.descripcion}
+                  </p>
                 </div>
 
                 <div className="flex flex-col">
-                  <p className="text-lg font-semibold text-gray-700">Seleccionar Acción:</p>
+                  <p className="text-lg font-semibold text-gray-700">
+                    Seleccionar Acción:
+                  </p>
                   <select
                     className="border rounded p-2 text-gray-800"
                     value={selectedAction}
-                    onChange={(e) => setSelectedAction(e.target.value)}
+                    onChange={(e) => {
+                      const selectedValue = e.target.value;
+                      const selectedName =
+                        e.target.options[e.target.selectedIndex].text.split(
+                          " - "
+                        )[0];
+
+                      setSelectedAction(selectedValue); // Set the points
+                      setSelectAccion(selectedName); // Set the name
+                    }}
                   >
                     <option value="">Seleccione una acción</option>
                     {dataAcciones.map((accion) => (
                       <option key={accion.id} value={accion.puntos}>
-                        {accion.nombre} - {accion.puntos} puntos
+                        {accion.nombre} - {accion.puntos}
                       </option>
                     ))}
                   </select>
+
                   {selectedAction === "" && (
-                    <p className="text-sm text-red-600 mt-1">Debe seleccionar una acción para continuar.</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      Debe seleccionar una acción para continuar.
+                    </p>
                   )}
                 </div>
 
                 <div className="flex justify-between gap-4">
                   <button
-                    onClick={() => HandleAprovedCliente(selectCliente)}
-                    className={`p-2 rounded w-full text-white ${selectedAction ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'}`}
+                    onClick={() =>
+                      HandleAprovedCliente(selectCliente, "Aceptado")
+                    }
+                    className={`p-2 rounded w-full text-white ${
+                      selectedAction
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "bg-gray-400 cursor-not-allowed"
+                    }`}
                     disabled={!selectedAction}
                   >
                     Aprobar
                   </button>
                   <button
-                    onClick={() => handleDecline(selectCliente)}
+                    onClick={() =>
+                      HandleAprovedCliente(selectCliente, "Rechazado")
+                    }
                     className="bg-red-800 hover:bg-red-900 text-white p-2 rounded w-full"
                   >
                     Declinar
@@ -1505,8 +2059,6 @@ function AdminPuntos() {
             </div>
           )}
         </Modal>
-
-
       </div>
       <div className="mt-2 flex justify-end mx-4">
         <div className="flex items-center space-x-2">
