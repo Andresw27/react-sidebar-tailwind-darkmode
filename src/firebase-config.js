@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 
 // Configuración de tu aplicación web de Firebase
 const firebaseConfig = {

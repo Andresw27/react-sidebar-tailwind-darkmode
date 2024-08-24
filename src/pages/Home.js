@@ -3,6 +3,8 @@ import Layout from "../components/Layout";
 import { BiBriefcaseAlt } from "react-icons/bi";
 import { MdOutlinePendingActions } from "react-icons/md";
 import { MdAccessTimeFilled } from "react-icons/md";
+import { MdCancel } from "react-icons/md";
+
 import { MdDateRange } from "react-icons/md";
 
 import { FaMotorcycle } from "react-icons/fa";
@@ -50,9 +52,16 @@ const Home = ({ totalValue }) => {
   const [searchVisible, setSearchVisible] = useState(false);
   const [numeroWp, setNumeroWp] = useState(0);
 
-  const { uidUser, identificador, valorMinimo, PuntosporValor } = useSelector(
-    (state) => state.user
-  );
+  const {
+    uidUser,
+    identificador,
+    valorMinimo,
+    PuntosporValor,
+    naceptado,
+    ndistribucion,
+    nentregado,
+    ncancelado
+  } = useSelector((state) => state.user);
 
   const editableRef = useRef(null);
   const [fecha, setFecha] = useState(new Date());
@@ -119,72 +128,87 @@ const Home = ({ totalValue }) => {
   const openModal = () => setModalOpen(true);
   const closeModal = () => setModalOpen(false);
 
+  //fetch pedidos
+  // const fetchOrders = async () => {
+  //   try {
+  //     const userQuery = query(
+  //       collection(db, "usuarios"),
+  //       where("identificador", "==", identificador)
+  //     );
+
+  //     const querySnapshot = await getDocs(userQuery);
+  //     let uidUser = "";
+  //     querySnapshot.forEach((doc) => {
+  //       uidUser = doc.id;
+  //     });
+
+  //     if (!uidUser) {
+  //       console.log("No user found with the given identifier");
+  //       return;
+  //     }
+
+  //     console.log("UID of user:", uidUser);
+
+  //     const ordersRef = collection(db, "pedidos", uidUser, "historial");
+  //     const ordersQuery = query(ordersRef, orderBy("createdAt", "asc"));
+
+  //     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+  //       const pedidos = [];
+  //       snapshot.forEach((doc) => {
+  //         const pedido = doc.data();
+
+  //         const valorTotal = Array.isArray(pedido.carrito)
+  //           ? pedido.carrito.reduce(
+  //               (acc, item) => acc + item.cantidad * item.valorp,
+  //               0
+  //             )
+  //           : 0;
+
+  //         pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
+  //       });
+
+  //       const valorTotalPedidos = pedidos.reduce(
+  //         (acc, pedido) => acc + pedido.valor,
+  //         0
+  //       );
+  //       setValorTotal(valorTotalPedidos);
+  //       setDataOrder(pedidos);
+  //       console.log("pedidos", pedidos);
+  //     });
+
+  //     return () => unsubscribe();
+  //   } catch (error) {
+  //     console.error("Error fetching orders:", error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchOrders();
+  // }, []);
+
+
   const fetchOrders = async () => {
     try {
-      const userQuery = query(
-        collection(db, "usuarios"),
-        where("identificador", "==", identificador)
+    
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${identificador}`
       );
-
-      const querySnapshot = await getDocs(userQuery);
-      let uidUser = "";
-      querySnapshot.forEach((doc) => {
-        uidUser = doc.id;
-      });
-
-      if (!uidUser) {
-        return;
-      }
-
-      const ordersRef = collection(db, "pedidos", uidUser, "historial");
-      const ordersQuery = query(ordersRef, orderBy("createdAt", "asc"));
-
-      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-        const pedidos = [];
-        snapshot.forEach((doc) => {
-          const pedido = doc.data();
-
-          // Verificar que 'carrito' está definido y es un array antes de usar reduce
-          const valorTotal = Array.isArray(pedido.carrito)
-            ? pedido.carrito.reduce(
-                (acc, item) => acc + item.cantidad * item.valorp,
-                0
-              )
-            : 0;
-
-          pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
-        });
-
-        const valorTotalPedidos = pedidos.reduce(
-          (acc, pedido) => acc + pedido.valor,
-          0
-        );
-        setValorTotal(valorTotalPedidos);
-        setDataOrder(pedidos);
-      });
-
-      return () => unsubscribe();
-    } catch (error) {}
+      const data = await response.json();
+      setDataOrder(data.pedidos);
+      console.log("la data essss", data.pedidos);
+    } catch (error) {
+      // console.error("Error al obtener los datos:", error);
+    } 
   };
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  //NUEVO PEDIDO
-  // useEffect(() => {
-  //   if (previousOrders.length < dataOrder.length) {
-  //     playNotificationSound();
-  //     alert('¡Nuevo pedido recibido!');
-  //   }
 
-  //   setPreviousOrders(dataOrder);
-  // }, [dataOrder]);
 
-  // const playNotificationSound = () => {
-  //   const audio = new Audio(notificationSound);
-  //   audio.play();
-  // };
+
+
 
   const getTrClasses = (estado) => {
     switch (estado) {
@@ -225,47 +249,7 @@ const Home = ({ totalValue }) => {
     if (orderIndex !== -1) {
       newDataOrder[orderIndex].estado = value;
       setDataOrder(newDataOrder);
-
-      // Obtener el id de la orden y número de WhatsApp
       const orderId = newDataOrder[orderIndex].id;
-      const numeroWp = newDataOrder[orderIndex].numeroWp;
-      setNumeroWp(numeroWp);
-      console.log(totalValue, "total");
-
-      if (value === "Aceptado" && totalValue >= valorMinimo) {
-        console.log(
-          "Estado cambiado a 'Aceptado' y el total es mayor al valor mínimo",
-          totalValue + " > " + valorMinimo
-        );
-
-        try {
-          const response = await fetch(
-            `https://us-central1-jeicydelivery.cloudfunctions.net/app/puntos/update/${identificador}/${numeroWp}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ puntos: Puntos / 2 }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          } else {
-            console.log(
-              "Puntos actualizados correctamente",
-              Puntos,
-              totalValue
-            );
-          }
-
-          const updatedTotal = await response.text();
-          console.log("Puntos actualizados:", updatedTotal);
-        } catch (error) {
-          console.error("Error al actualizar los puntos:", error.message);
-        }
-      }
 
       // Actualizar la orden en el servidor
       try {
@@ -285,16 +269,58 @@ const Home = ({ totalValue }) => {
             "Error al actualizar el estado del pedido. Inténtalo nuevamente."
           );
           setShowErrorAlert(true);
-        } else {
+        } 
           setAlertMessage("Estado actualizado con éxito");
           setShowAlert(true);
-        }
+        
       } catch (error) {
         console.error(
           "Error al actualizar el estado del pedido:",
           error.message
         );
         // Manejar el error (posiblemente revertir el cambio local)
+      }
+
+      let dataPedido = {
+        ...newDataOrder[orderIndex],
+      };
+
+      if (value === "aceptado") {
+        dataPedido.flag = 1;
+        dataPedido.naceptado = naceptado;
+      } else if (value === "Distribucion") {
+        dataPedido.flag = 2;
+        dataPedido.ndistribucion = ndistribucion;
+      } else if (value === "Entregado") {
+        dataPedido.flag = 3;
+        dataPedido.nentregado = nentregado;
+      } else if (value === "Cancelado") {
+        dataPedido.flag = 4;
+        dataPedido.ncancelado = ncancelado;
+      }
+
+      if (dataPedido.flag) {
+        try {
+          const response1 = await fetch(
+            "https://hook.us1.make.com/39p4vx3px9r7xl4myp3hcmvoonucp39t",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(dataPedido),
+            }
+          );
+
+          if (!response1.ok) {
+            console.log("Error al enviar objeto");
+          } else {
+            console.log("Objeto enviado correctamente", dataPedido);
+          }
+        } catch (error) {
+          console.error("Error al enviar el objeto al hook:", error.message);
+          // Manejar el error (posiblemente revertir el cambio local)
+        }
       }
     }
   };
@@ -304,9 +330,10 @@ const Home = ({ totalValue }) => {
     const orderIndex = newDataOrder.findIndex(
       (order) => order.id === editOrderId
     );
+  
     if (orderIndex !== -1) {
       const orderId = newDataOrder[orderIndex].id;
-
+  
       try {
         const response = await fetch(
           `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}/${orderId}`,
@@ -318,23 +345,30 @@ const Home = ({ totalValue }) => {
             body: JSON.stringify(newDataOrder[orderIndex]),
           }
         );
-
+  
         if (!response.ok) {
           setAlertMessage(
-            "Error al actualizar los datos del pedido . Inténtalo nuevamente."
+            "Error al actualizar los datos del pedido. Inténtalo nuevamente."
           );
           setShowErrorAlert(true);
-        } else {
-          setAlertMessage("Información actuadlizada con éxito");
-          setShowAlert(true);
+          return; // Early return to avoid setting success alert
         }
+  
+        setAlertMessage("Información actualizada con éxito");
+        setShowAlert(true);
       } catch (error) {
-        // console.error("Error:", error);
-        // Manejar el error (posiblemente revertir el cambio local)
+        setAlertMessage(
+          "Ocurrió un error al intentar actualizar el pedido. Por favor, inténtalo de nuevo más tarde."
+        );
+        setShowErrorAlert(true);
+        console.error("Error:", error);
+        // Optionally revert local changes or perform additional error handling
+      } finally {
+        setEditOrderId(null); // Clean up the edit state
       }
     }
-    setEditOrderId(null); // Limpiar el estado de edición
   };
+  
 
   const handleClickOutside = (event) => {
     if (editableRef.current && !editableRef.current.contains(event.target)) {
@@ -355,9 +389,9 @@ const Home = ({ totalValue }) => {
     if (e.key === "Enter") {
       handleBlur();
     }
-    if (e.key === "Escape") {
-      handleBlur();
-    }
+    // if (e.key === "Escape") {
+    //   handleBlur();
+    // }
   };
 
   const handleEdit = (id) => {
@@ -394,6 +428,16 @@ const Home = ({ totalValue }) => {
   const totalPedidosEntregados = dataOrder.filter(
     (order) => order.estado === "Entregado"
   ).length;
+
+
+
+  const totalPedidosCancelados = dataOrder.filter(
+    (order) => order.estado === "Cancelado"
+  ).length;
+
+
+
+
   //Generador de fatura pdf
   const generarFactura = (order) => {
     const doc = new jsPDF("p", "mm", "a4"); // Tamaño A4 en milímetros
@@ -497,26 +541,21 @@ const Home = ({ totalValue }) => {
         false) ||
       (product.numeroWP?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
-      (product.numeroContacto
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ??
+      (product.numeroContacto?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.direccion?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
-      (product.puntoReferencia
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ??
+      (product.puntoReferencia?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.metodoPago?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
-      (product.valor
-        ?.toString()
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ??
+      (product.valor?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.estado?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+        false)||
+        (product.pedidoId?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false);
 
     const matchesFilters = selectedFilters.estado
@@ -583,11 +622,9 @@ const Home = ({ totalValue }) => {
           </div>
         </div>
         <div className="md:px-2 grid grid-cols-1 md:grid-cols-1 gap-4 ">
-        
-
-          <div className="col-span-4 grid grid-cols-4 gap-3 mb-4">
+          <div className="col-span-4 grid grid-cols-5 gap-3 mb-4">
             <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-100 bg-opacity-80 backdrop-blur-sm shadow-md">
-              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-red-100 shadow-lg">
+              <div className="flex justify-center items-center w-16 h-16 ">
                 <MdOutlinePendingActions className="text-3xl" />
               </div>
               <div className="flex flex-col justify-center items-start">
@@ -602,7 +639,7 @@ const Home = ({ totalValue }) => {
 
             {/* Pedidos Aceptados */}
             <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-blue-100 bg-opacity-80 backdrop-blur-sm shadow-md">
-              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-blue-100 shadow-lg">
+              <div className="flex justify-center items-center w-16 h-16 ">
                 <MdAccessTimeFilled className="text-3xl" />
               </div>
               <div className="flex flex-col justify-center items-start">
@@ -614,10 +651,11 @@ const Home = ({ totalValue }) => {
                 </p>
               </div>
             </div>
+         
 
             {/* Pedidos Distribución */}
             <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-yellow-100 bg-opacity-80 backdrop-blur-sm shadow-md">
-              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-yellow-100 shadow-lg">
+              <div className="flex justify-center items-center w-16 h-16 rounded-full ">
                 <FaMotorcycle className="text-3xl" />
               </div>
               <div className="flex flex-col justify-center items-start">
@@ -634,7 +672,7 @@ const Home = ({ totalValue }) => {
 
             {/* Total Entregados */}
             <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-green-100 bg-opacity-80 backdrop-blur-sm shadow-md">
-              <div className="flex justify-center items-center w-16 h-16 rounded-full bg-green-100 shadow-lg">
+              <div className="flex justify-center items-center w-16 h-16  ">
                 <GrCompliance className="text-3xl" />
               </div>
               <div className="flex flex-col justify-center items-start">
@@ -646,6 +684,26 @@ const Home = ({ totalValue }) => {
                 </p>
               </div>
             </div>
+
+          {/* Total Pedidos cancelados*/ }
+          <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-200 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16  ">
+                <MdCancel className="text-4xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {totalPedidosCancelados > 0 ? totalPedidosCancelados : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                  Pedidos Cancelados
+                </p>
+              </div>
+            </div>
+
+
+
+
+
           </div>
         </div>
 
@@ -771,7 +829,7 @@ const Home = ({ totalValue }) => {
                   <tr>
                     <th
                       scope="col"
-                      hidden
+                     
                       className="px-2 py-2 sm:px-4 sm:py-3"
                     >
                       Id Pedido
@@ -822,9 +880,9 @@ const Home = ({ totalValue }) => {
                 <tbody>
                   {currentProducts.map((order, index) => (
                     <tr key={order.id} className={getTrClasses(order.estado)}>
-                      <td hidden className="px-2 py-2 sm:px-4 sm:py-3">
-                        <Tooltip content={index}>
-                          <span>{`0000${index}`}</span>
+                      <td  className="px-2 py-2 sm:px-4 sm:py-3">
+                        <Tooltip content={order.pedidoId}>
+                          <span>{order.pedidoId}</span>
                         </Tooltip>
                       </td>
                       <td
@@ -1028,7 +1086,11 @@ const Home = ({ totalValue }) => {
                               onClose={closeModal}
                               Fondo="auto"
                             >
-                              <div className=" justify-center flex"><p className="bg-slate-50 rounded-full text-black p-2 text-base">Pedido: {order.descripcion}</p></div>
+                              <div className=" justify-center flex">
+                                <p className="bg-slate-50 rounded-full text-black p-2 text-base">
+                                  Pedido: {order.descripcion}
+                                </p>
+                              </div>
                               <Carrito
                                 order={order}
                                 ordenId={order.id}
@@ -1068,8 +1130,9 @@ const Home = ({ totalValue }) => {
                             <option value="Solicitado">Solicitado</option>
                             <option value="Aceptado">Aceptado</option>
                             <option value="Distribucion">Distribucion</option>
-
                             <option value="Entregado">Entregado</option>
+                            <option value="Cancelado">Cancelado</option>
+
                           </select>
                         ) : (
                           <select
@@ -1085,6 +1148,8 @@ const Home = ({ totalValue }) => {
                             <option value="Aceptado">Aceptado</option>
                             <option value="Distribucion">Distribucion</option>
                             <option value="Entregado">Entregado</option>
+                            <option value="Cancelado">Cancelado</option>
+
                           </select>
                         )}
                       </td>

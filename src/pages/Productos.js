@@ -189,7 +189,7 @@ function Productos() {
         }
       );
 
-      if (!response.ok) {
+     if (!response.ok) {
         setAlertMessage("Error al editar el producto. Inténtalo nuevamente.");
         setShowErrorAlert(true);
         closeEditModal();
@@ -204,7 +204,7 @@ function Productos() {
       fetchProductos();
     } catch (error) {
       // console.error("Error updating product:", error);
-    }
+    } 
   };
 
   return (

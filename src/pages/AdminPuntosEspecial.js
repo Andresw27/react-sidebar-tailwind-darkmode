@@ -3,6 +3,8 @@ import Layout from "../components/Layout";
 import { IoSearch, IoClose, IoSettingsSharp } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
 import { FaCoins, FaBookOpen } from "react-icons/fa";
+import { MdCancel } from "react-icons/md";
+
 import { auth } from "../firebase-config";
 import { FaCrown } from "react-icons/fa";
 
@@ -27,6 +29,8 @@ import { db } from "../firebase-config";
 import { useSelector } from "react-redux";
 
 function AdminPuntos() {
+  const [comentario, setComentario] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermPremio, setSearchTermPremio] = useState("");
   const [searchVisiblePremio, setSearchVisiblePremio] = useState(false);
@@ -90,7 +94,7 @@ function AdminPuntos() {
   const [NombrePremio, setNombrePremio] = useState("");
   const [DescripcionPremio, setDescripcionPremio] = useState("");
   const [DataPremios, setDataPremios] = useState("");
-  const { identificador, idBot, naceptado, nrechazado } = useSelector(
+  const { identificador, idBot, naceptado, nrechazado, webhook } = useSelector(
     (state) => state.user
   );
   const [dataClientesFactura, setDataClientesFactura] = useState([]);
@@ -104,6 +108,21 @@ function AdminPuntos() {
   //Estado Premio GLobal
   const [PremioGlobal, setPremioGlobal] = useState("");
   // console.log("accione seleccionada2 ",selectedAction)
+
+  //opcion para limpiar select
+  const handleSelectChange = (e) => {
+    const selectedValue = e.target.value;
+    const selectedName =
+      e.target.options[e.target.selectedIndex].text.split(" - ")[0];
+
+    setSelectedAction(selectedValue); // Set the points
+    setSelectAccion(selectedName); // Set the name
+  };
+
+  const handleClearSelection = () => {
+    setSelectedAction("");
+    setSelectAccion("");
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,6 +189,7 @@ function AdminPuntos() {
 
   const fetchSolicitudes = async () => {
     try {
+      // Consulta para obtener el UID del usuario basado en el identificador
       const userQuery = query(
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
@@ -182,26 +202,33 @@ function AdminPuntos() {
       });
 
       if (!uidUser) {
-        // console.error("Usuario no encontrado");
+        console.error("Usuario no encontrado");
         return;
       }
 
+      // Referencia a la colección de solicitudes del usuario
       const accionesRef = collection(db, "solicitudes", uidUser, "historial");
 
-      // Asegúrate de incluir los criterios correctos en la consulta
+      // Consulta para filtrar por estado y tipo
       const accionesQuery = query(
         accionesRef,
         where("estado", "==", "Solicitado"),
         where("tipo", "==", "especial")
       );
 
-      const unsubscribe = onSnapshot(accionesQuery, (snapshot) => {
+      const unsubscribe = onSnapshot(accionesQuery, async (snapshot) => {
         const solicitudes = [];
-        snapshot.forEach((doc) => {
+
+        // Utiliza un bucle for...of para manejar operaciones asíncronas
+        for (const doc of snapshot.docs) {
           const data = doc.data();
           data.id = doc.id;
+
+          // Llama a fetchContentType para obtener el content-type
+          data.contentType = await fetchContentType(data.recibo);
+
           solicitudes.push(data);
-        });
+        }
 
         setDataClientesFactura(solicitudes);
         console.log("data recibos", solicitudes);
@@ -209,7 +236,20 @@ function AdminPuntos() {
 
       return () => unsubscribe();
     } catch (error) {
-      // console.error("Error al obtener los datos:", error.message);
+      console.error("Error al obtener los datos:", error.message);
+    }
+  };
+
+  const fetchContentType = async (url) => {
+    try {
+      const response = await fetch(url);
+      const contentType = response.headers.get("content-type");
+      console.log(contentType, "dd");
+
+      return contentType;
+    } catch (error) {
+      console.error(`Error fetching content-type for URL: ${url}`, error);
+      return "Fetch failed";
     }
   };
 
@@ -362,10 +402,13 @@ function AdminPuntos() {
     setSelectCliente(cliente);
 
     setEditModalOpen(true);
+    console.log(cliente, "cliente");
   };
 
   const closeEditModal = () => {
     setEditModalOpen(false);
+    setComentario("");
+    setSelectedAction("");
   };
 
   //Modal configurar puntos
@@ -387,7 +430,7 @@ function AdminPuntos() {
   // };
   //aprobar solicitud de puntos
 
-  const HandleAprovedCliente = async (cliente, estado) => {
+  const HandleAprovedCliente = async (cliente, estado, comentario) => {
     console.log(
       "Cliente aprobado",
       cliente,
@@ -397,34 +440,23 @@ function AdminPuntos() {
     console.log(estado, "estado");
 
     const clienteAprobado = {
-      fecha: "12/08/2024",
       nombre: cliente.nombre,
       puntos: selectedAction,
       estado: estado,
     };
 
-    if (estado === "Aceptado") {
-      setFormData({
-        idBot: idBot,
-        plantilla: naceptado,
-        nombre: cliente.nombre,
-        celular: cliente.numerowp,
-        idSolicitud: cliente.idSolicitud,
-        puntos: selectedAction,
-        accion: selectAccion,
-        flag: "1",
-      });
-    } else if (estado === "Rechazado") {
-      setFormData({
-        idBot: idBot,
-        plantilla: nrechazado,
-        nombre: cliente.nombre,
-        celular: cliente.numerowp,
-        flag: "3",
-      });
-    }
-
-    console.log(formData, "formdata");
+    // Definimos formData directamente aquí, en lugar de usar setFormData
+    const formData = {
+      idBot: idBot,
+      nombre: cliente.nombre,
+      celular: cliente.numerowp,
+      idSolicitud: cliente.idSolicitud,
+      puntos: selectedAction,
+      accion: selectAccion,
+      flag: estado === "Aceptado" ? "1" : "3",
+      plantilla: estado === "Aceptado" ? naceptado : nrechazado,
+      comentario: comentario,
+    };
 
     try {
       // Primer fetch para enviar el formData
@@ -440,7 +472,9 @@ function AdminPuntos() {
       );
 
       if (!response1.ok) {
-        throw new Error("Failed to send form data");
+        throw new Error("Error en el envío del formulario");
+      } else {
+        console.log("solicitud bien", formData);
       }
 
       // Segundo fetch para actualizar la solicitud
@@ -456,30 +490,19 @@ function AdminPuntos() {
       );
 
       if (!response2.ok) {
-        throw new Error("Failed to approve client points");
+        throw new Error("Error al actualizar la solicitud");
       }
 
-      // Manejo del contenido de la respuesta
-      const contentType = response2.headers.get("content-type");
-      if (contentType.includes("application/json")) {
-        const result = await response2.json();
-        console.log("Response JSON:", result);
-      } else if (contentType.includes("text/plain")) {
-        const textResponse = await response2.text();
-        console.log("Text response:", textResponse);
-      } else {
-        throw new Error("Unexpected response format");
-      }
-
-      // Mensaje de éxito y cierre del modal
+      closeEditModal();
       setAlertMessage("Cliente aprobado correctamente");
       setShowAlert(true);
-      closeEditModal();
     } catch (error) {
-      // Manejo de errores
       console.error("Error approving client points:", error);
-      setAlertMessage("Error al aprobar cliente.");
+      setAlertMessage("Error en el proceso de aprobación.");
       setShowAlert(true);
+    } finally {
+      // Siempre cierra el modal, ya sea que la operación haya sido exitosa o haya fallado
+      closeEditModal();
     }
   };
 
@@ -708,6 +731,8 @@ function AdminPuntos() {
         setShowErrorAlert(true);
       } else {
         setAlertMessage("Premio configurado con éxito");
+        setPremioGlobal(newPremioGlobal);
+
         setShowAlert(true);
         setNewnombrePremioGlobal("");
         setNewdescripcionPremioGlobal("");
@@ -871,19 +896,19 @@ function AdminPuntos() {
   //funcion editar accion
   const handleEditaAccion = async (e) => {
     e.preventDefault();
-
+  
     if (!selectAccion) {
       console.error("No product to edit");
       return;
     }
-
+  
     const updatedProduct = {
-      ...selectedAction,
+      ...selectAccion,
       nombre: nombreAccion,
       descripcion: descripcionAccion,
       puntos: puntosAccion,
     };
-
+  
     try {
       const response = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/actions/update/${identificador}/${selectAccion.id}`,
@@ -895,26 +920,22 @@ function AdminPuntos() {
           body: JSON.stringify(updatedProduct),
         }
       );
-
-      const responseW = await response.text();
-      console.log("Respuesta", responseW);
-
+  
       if (!response.ok) {
-        throw new Error("Failed to update product");
+        setAlertMessage("Error al eliminar el producto. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+      } else {
+        setAlertMessage("Accion eliminada con éxito");
+        setShowAlert(true);
+        fetchAccciones();
+        // Cerrar el modal solo si la actualización fue exitosa
+        ClosedModalEditAcciones();
       }
-
-      setAlertMessage("Accion actualizada con éxito");
-      setShowAlert(true);
-      fetchAccciones(); // Primero actualiza las acciones
-      ClosedModalEditAcciones(); // Luego cierra el modal
     } catch (error) {
-      setAlertMessage(
-        `Error al editar la accion. Inténtalo nuevamente. ${error.message}`
-      );
-      setShowErrorAlert(true);
-      console.error("Error updating product:", error.message);
+      console.error("Error updating action:", error);
     }
   };
+  
   //modal para eliminar acciones
 
   const OpenDeleteAccionModal = (accion) => {
@@ -984,7 +1005,7 @@ function AdminPuntos() {
           ClosedModalPremio();
         }
 
-        setAlertMessage("Premio eliminada con éxito");
+        setAlertMessage("Premio eliminado con éxito");
         setShowAlert(true);
         fetchPremios();
         ClosedModalPremio();
@@ -1004,16 +1025,15 @@ function AdminPuntos() {
           ClosedModalPremio();
         }
 
-        setAlertMessage("Premio eliminada con éxito");
+        setAlertMessage("Premio Global eliminado con éxito");
         setShowAlert(true);
+        setPremioGlobal(null);
         fetchPremios();
         ClosedModalPremio();
       } catch (error) {}
     }
   };
 
-
-  
   return (
     <Layout>
       {showAlert && (
@@ -1336,71 +1356,78 @@ function AdminPuntos() {
               size="auto"
               Fondo="none"
             >
-              <form
-                className="space-y-6 my-5 px-2"
-                onSubmit={handleSubmitActions}
-              >
-                <div>
-                  <label
-                    htmlFor="nombreAccion"
-                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
-                  >
-                    Nombre de la Acción
-                  </label>
-                  <input
-                    type="text"
-                    onChange={(e) => setNewNombreAccion(e.target.value)}
-                    value={newNombreAccion}
-                    id="newNombreAccion"
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ingresa el nombre de la acción"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="descripcionAccion"
-                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
-                  >
-                    Descripción de la Acción
-                  </label>
-                  <input
-                    type="text"
-                    onChange={(e) => setNewDescripcionAccion(e.target.value)}
-                    value={newDescripcionAccion}
-                    id="descripcionAccion"
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Describe brevemente la acción"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="puntos"
-                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
-                  >
-                    Cantidad de Puntos por Acción
-                  </label>
-                  <input
-                    type="number"
-                    onChange={(e) => setNewPuntosAccion(e.target.value)}
-                    value={newPuntosAccion}
-                    id="puntos"
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Especifica los puntos por acción"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+              {dataAcciones.length >= 10 ? (
+                <p className="text-red-500 text-sm">
+                  No puedes agregar más Acciones, para agregar una nueva accion
+                  por favor elimina una de los anteriores configuradas.
+                </p>
+              ) : (
+                <form
+                  className="space-y-6 my-5 px-2"
+                  onSubmit={handleSubmitActions}
                 >
-                  Configurar Acción
-                </button>
-              </form>
+                  <div>
+                    <label
+                      htmlFor="nombreAccion"
+                      className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                    >
+                      Nombre de la Acción
+                    </label>
+                    <input
+                      type="text"
+                      onChange={(e) => setNewNombreAccion(e.target.value)}
+                      value={newNombreAccion}
+                      id="newNombreAccion"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ingresa el nombre de la acción"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="descripcionAccion"
+                      className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                    >
+                      Descripción de la Acción
+                    </label>
+                    <input
+                      type="text"
+                      onChange={(e) => setNewDescripcionAccion(e.target.value)}
+                      value={newDescripcionAccion}
+                      id="descripcionAccion"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Describe brevemente la acción"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="puntos"
+                      className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                    >
+                      Cantidad de Puntos por Acción
+                    </label>
+                    <input
+                      type="number"
+                      onChange={(e) => setNewPuntosAccion(e.target.value)}
+                      value={newPuntosAccion}
+                      id="puntos"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Especifica los puntos por acción"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+                  >
+                    Configurar Acción
+                  </button>
+                </form>
+              )}
             </Modal>
 
             <Tooltip content="Configurar Premios">
@@ -1439,71 +1466,80 @@ function AdminPuntos() {
             size="auto"
             Fondo="none"
           >
-            <form
-              className="space-y-6 my-8 px-6"
-              onSubmit={handleSubmitPremioEspecifico}
-            >
-              <div className="md:w-full mb-4">
-                <label
-                  htmlFor="NombrePremio"
-                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
-                >
-                  Nombre del Premio
-                </label>
-                <input
-                  type="text"
-                  onChange={(e) => setNewnombrePremioEspe(e.target.value)}
-                  value={NewnombrePremioEspe}
-                  id="NombrePremio"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Ingresa el nombre del premio"
-                  required
-                />
-              </div>
-
-              <div className="md:w-full mb-4">
-                <label
-                  htmlFor="DescripcionPremio"
-                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
-                >
-                  Descripción del Premio
-                </label>
-                <input
-                  type="text"
-                  onChange={(e) => setNewdescripcionPremioEspe(e.target.value)}
-                  value={NewdescripcionPremioEspe}
-                  id="DescripcionPremio"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Describe brevemente el premio"
-                  required
-                />
-              </div>
-
-              <div className="md:w-full mb-6">
-                <label
-                  htmlFor="CantidadPuntos"
-                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
-                >
-                  Cantidad de Puntos
-                </label>
-                <input
-                  type="number"
-                  onChange={(e) => setNewPuntosPremioEspe(e.target.value)}
-                  value={NewpuntosPremioEspe}
-                  id="CantidadPuntos"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Especifica los puntos requeridos"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+            {DataPremios.length > 5 ? (
+              <p className="text-red-500 text-sm">
+                No puedes agregar más premios, para agregar uno nuevo por favor
+                elimina uno de los anteriores configurados.
+              </p>
+            ) : (
+              <form
+                className="space-y-6 my-8 px-6"
+                onSubmit={handleSubmitPremioEspecifico}
               >
-                Configurar Premios
-              </button>
-            </form>
+                <div className="md:w-full mb-4">
+                  <label
+                    htmlFor="NombrePremio"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                  >
+                    Nombre del Premio
+                  </label>
+                  <input
+                    type="text"
+                    onChange={(e) => setNewnombrePremioEspe(e.target.value)}
+                    value={NewnombrePremioEspe}
+                    id="NombrePremio"
+                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ingresa el nombre del premio"
+                    required
+                  />
+                </div>
+
+                <div className="md:w-full mb-4">
+                  <label
+                    htmlFor="DescripcionPremio"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                  >
+                    Descripción del Premio
+                  </label>
+                  <input
+                    type="text"
+                    onChange={(e) =>
+                      setNewdescripcionPremioEspe(e.target.value)
+                    }
+                    value={NewdescripcionPremioEspe}
+                    id="DescripcionPremio"
+                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Describe brevemente el premio"
+                    required
+                  />
+                </div>
+
+                <div className="md:w-full mb-6">
+                  <label
+                    htmlFor="CantidadPuntos"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                  >
+                    Cantidad de Puntos
+                  </label>
+                  <input
+                    type="number"
+                    onChange={(e) => setNewPuntosPremioEspe(e.target.value)}
+                    value={NewpuntosPremioEspe}
+                    id="CantidadPuntos"
+                    className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Especifica los puntos requeridos"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+                >
+                  Configurar Premios
+                </button>
+              </form>
+            )}
           </Modal>
 
           <Modal
@@ -1575,8 +1611,7 @@ function AdminPuntos() {
                 <tbody>
                   {CurrentPremio.length === 0 ? (
                     <p className="text-center text-xs mx-10   flex justify-center items-center mt-10 mb-10">
-                      No hay acciónes configuradas actualmente, por favor
-                      configuré una acción
+                      No hay productos disponibles
                     </p>
                   ) : (
                     CurrentPremio.map((premio, index) => (
@@ -1681,14 +1716,14 @@ function AdminPuntos() {
                             {premio.tipo === "global" ? (
                               <button
                                 onClick={handleEditPremioGlobal}
-                                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                                className="w-full mt-4 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                               >
                                 Actualizar global
                               </button>
                             ) : (
                               <button
                                 onClick={handleEditPremio}
-                                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                                className="w-full mt-4 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                               >
                                 Actualizar Premio especifico
                               </button>
@@ -1815,68 +1850,80 @@ function AdminPuntos() {
           size="auto"
           Fondo="none"
         >
-          <form className="space-y-4 my-10" onSubmit={handleSubmitPremioGlobal}>
-            <div className="md:w-full px-3 mb-6 md:mb-0">
-              <label
-                htmlFor=""
-                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-              >
-                Nombre Premio
-              </label>
-              <input
-                type="text"
-                onChange={(e) => setNewnombrePremioGlobal(e.target.value)}
-                value={NewnombrePremioGlobal}
-                id="NewnombrePremioGlobal"
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-              />
-            </div>
-            <div className="md:w-full px-3 mb-6 md:mb-0">
-              <label
-                htmlFor="text"
-                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-              >
-                Descripción del premio
-              </label>
-              <input
-                type="text"
-                onChange={(e) => setNewdescripcionPremioGlobal(e.target.value)}
-                value={NewdescripcionPremioGlobal}
-                id="NewdescripcionPremioGlobal"
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5  dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                required
-              />
-            </div>
-            <div className="md:w-full px-3 mb-6 md:mb-0">
-              <label
-                htmlFor="number"
-                className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-              >
-                Cantidad de puntos
-              </label>
-              <input
-                type="number"
-                onChange={(e) => setNewPuntosPremioGlobal(e.target.value)}
-                value={NewpuntosPremioGlobal}
-                id="NewpuntosPremioGlobal"
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+          {PremioGlobal ? (
+            <p className="text-red-500 text-sm">
+              No puede agregar más premios globales.
+            </p>
+          ) : (
+            <form
+              className="space-y-4 my-10"
+              onSubmit={handleSubmitPremioGlobal}
             >
-              Configurar Premio Global
-            </button>
-          </form>
+              <div className="md:w-full px-3 mb-6 md:mb-0">
+                <label
+                  htmlFor="NewnombrePremioGlobal"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Nombre Premio
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) => setNewnombrePremioGlobal(e.target.value)}
+                  value={NewnombrePremioGlobal}
+                  id="NewnombrePremioGlobal"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  required
+                />
+              </div>
+              <div className="md:w-full px-3 mb-6 md:mb-0">
+                <label
+                  htmlFor="NewdescripcionPremioGlobal"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Descripción del premio
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) =>
+                    setNewdescripcionPremioGlobal(e.target.value)
+                  }
+                  value={NewdescripcionPremioGlobal}
+                  id="NewdescripcionPremioGlobal"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  required
+                />
+              </div>
+              <div className="md:w-full px-3 mb-6 md:mb-0">
+                <label
+                  htmlFor="NewpuntosPremioGlobal"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Cantidad de puntos
+                </label>
+                <input
+                  type="number"
+                  onChange={(e) => setNewPuntosPremioGlobal(e.target.value)}
+                  value={NewpuntosPremioGlobal}
+                  id="NewpuntosPremioGlobal"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              >
+                Configurar Premio Global
+              </button>
+            </form>
+          )}
         </Modal>
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400  ">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
               <th scope="col" className="px-6 py-3">
-                Id
+                Id Cliente
               </th>
               <th scope="col" className="px-6 py-3">
                 Fecha
@@ -1969,7 +2016,25 @@ function AdminPuntos() {
           {selectCliente && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start p-6">
               <div className="flex justify-center flex-col">
-                <img className="h-96 w-86" src={`${selectCliente.recibo}`} />
+                {selectCliente.contentType &&
+                selectCliente.contentType.includes("image") ? (
+                  <img
+                    className="h-96 w-86"
+                    src={`${selectCliente.recibo}`}
+                    alt="Recibo"
+                  />
+                ) : selectCliente.contentType &&
+                  selectCliente.contentType.includes("video") ? (
+                  <video className="h-96 w-full" controls>
+                    <source
+                      src={`${selectCliente.recibo}`}
+                      type={selectCliente.contentType}
+                    />
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <p>Formato de archivo no soportado</p>
+                )}
               </div>
               <div className="flex flex-col gap-6 bg-white p-4 rounded-lg shadow-md">
                 <div className="flex flex-col">
@@ -2003,39 +2068,51 @@ function AdminPuntos() {
                   <p className="text-lg font-semibold text-gray-700">
                     Seleccionar Acción:
                   </p>
-                  <select
-                    className="border rounded p-2 text-gray-800"
-                    value={selectedAction}
-                    onChange={(e) => {
-                      const selectedValue = e.target.value;
-                      const selectedName =
-                        e.target.options[e.target.selectedIndex].text.split(
-                          " - "
-                        )[0];
+                  <div className="relative">
+                    <select
+                      className="border rounded p-2 text-gray-800 w-full"
+                      value={selectedAction}
+                      onChange={handleSelectChange}
+                    >
+                      <option value="">Seleccione una acción</option>
+                      {dataAcciones.map((accion) => (
+                        <option key={accion.id} value={accion.puntos}>
+                          {accion.nombre} - {accion.puntos}
+                        </option>
+                      ))}
+                    </select>
 
-                      setSelectedAction(selectedValue); // Set the points
-                      setSelectAccion(selectedName); // Set the name
-                    }}
-                  >
-                    <option value="">Seleccione una acción</option>
-                    {dataAcciones.map((accion) => (
-                      <option key={accion.id} value={accion.puntos}>
-                        {accion.nombre} - {accion.puntos}
-                      </option>
-                    ))}
-                  </select>
-
+                    {selectedAction && (
+                      <button
+                        className="absolute right-6 top-2 bg-red-500 text-white text-2xl  rounded-full"
+                        onClick={handleClearSelection}
+                      >
+                        <MdCancel />
+                      </button>
+                    )}
+                  </div>
                   {selectedAction === "" && (
                     <p className="text-sm text-red-600 mt-1">
                       Debe seleccionar una acción para continuar.
                     </p>
                   )}
                 </div>
-
+                <input
+                  type="text"
+                  className="border rounded p-2 text-gray-900"
+                  // hidden={selectedAction === "" ? false : true}
+                  value={comentario}
+                  onChange={(e) => setComentario(e.target.value)}
+                  placeholder="Indique un comentario sobre el porqué aprueba o declina la solicitud"
+                ></input>
                 <div className="flex justify-between gap-4">
                   <button
                     onClick={() =>
-                      HandleAprovedCliente(selectCliente, "Aceptado")
+                      HandleAprovedCliente(
+                        selectCliente,
+                        "Aceptado",
+                        comentario
+                      )
                     }
                     className={`p-2 rounded w-full text-white ${
                       selectedAction
@@ -2048,7 +2125,11 @@ function AdminPuntos() {
                   </button>
                   <button
                     onClick={() =>
-                      HandleAprovedCliente(selectCliente, "Rechazado")
+                      HandleAprovedCliente(
+                        selectCliente,
+                        "Rechazado",
+                        comentario
+                      )
                     }
                     className="bg-red-800 hover:bg-red-900 text-white p-2 rounded w-full"
                   >

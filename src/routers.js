@@ -67,7 +67,10 @@ const Routers = () => {
             valorMinimo: dataUser.valorMinimo,
             identificador: dataUser.identificador,
             correo: dataUser.correo,
-            password: dataUser.password
+            password: dataUser.password,
+            webhook: dataUser.webhook,
+            npremioentregado:dataUser.npremioentregado,
+            ncancelado:dataUser.ncancelado
           }));
         } else {
           console.log('No such document!');

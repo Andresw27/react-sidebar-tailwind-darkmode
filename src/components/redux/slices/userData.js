@@ -18,7 +18,10 @@ const initialState = {
   valorMinimo: '',
   identificador: '',
   correo: '',
-  password:''
+  password:'',
+  webhook:'',
+  npremioentregado:'',
+  ncancelado: '',
 };
 
 export const userSlice = createSlice({
@@ -26,7 +29,7 @@ export const userSlice = createSlice({
   initialState,
   reducers: {
     setUserData: (state, action) => {
-      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo } = action.payload;
+      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo, webhook , npremioentregado,ncancelado} = action.payload;
       state.uid = uid;
       state.PuntosporValor = PuntosporValor;
       state.nombreEmpresa = nombreEmpresa;
@@ -43,7 +46,10 @@ export const userSlice = createSlice({
       state.valorMinimo = valorMinimo;
       state.identificador = identificador;
       state.correo = correo;
+      state.webhook= webhook;
       state.password = password; 
+      state.npremioentregado=npremioentregado;
+      state.ncancelado=ncancelado;
     },
     clearUserData: (state) => {
       state.uid = null;
@@ -63,6 +69,10 @@ export const userSlice = createSlice({
       state.valorMinimo = null;
       state.identificador = null;
       state.correo = null;
+      state.webhook= null;
+      state.npremioentregado=null;
+      state.ncancelado=null;
+
     },
   },
 });

@@ -26,7 +26,7 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const user =useContext(UserContext)
   const [userRole, setUserRole] = useState(null);
-
+  const [UserPaquete,setUserPaquete]=useState(null)
   console.log('usuario',user)
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -41,6 +41,8 @@ const Login = () => {
           const userData = await fetchUserData(userAuth.uid);
           // console.log("userdatasidebar", userData);
           setUserRole(userData.role);
+          setUserPaquete(userData.paquete);
+          console.log(UserPaquete,"jef")
         } else {
           // console.log("No hay usuario autenticado.");
         }
@@ -52,29 +54,46 @@ const Login = () => {
     fetchData();
   }, []);
 
-  const functionAuth= async(e)=>{
+  const functionAuth = async (e) => {
     e.preventDefault();
-    const email= e.target.email.value;
-    const password= e.target.password.value;
-    setLoading(true); 
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+    setLoading(true);
+    
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/Ordenes'); 
-      // console.log('inicio de sesion exitoso')
+      
+      // Obtener el usuario autenticado
+      const userAuth = auth.currentUser;
+  
+      if (userAuth) {
+        // Fetch user data based on UID
+        const userData = await fetchUserData(userAuth.uid);
+        const userRole = userData.role;
+        const userPaquete = userData.paquete;
+  
+        // Condiciones para navegar a diferentes rutas según el rol y paquete
+        if (userRole === 'admin') {
+          navigate('/users');
+        } else if (userRole === 'Usuario' && userPaquete === 'JeicyFull') {
+          navigate('/Ordenes');
+        } else if (userRole === 'Usuario' && userPaquete === 'JeicyEspecial') {
+          navigate('/validarpuntos');
+        } else {
+          navigate('/Ordenes');
+        }
+      }
+      
     } catch (error) {
-      // console.log(error.message); 
       if (error.code === 'auth/user-not-found') {
         setErrorMessage('Usuario no registrado');
       } else {
         setErrorMessage('Correo o contraseña incorrectos');
       }
-    }finally{
-      setLoading(false); 
-
+    } finally {
+      setLoading(false);
     }
-
-   
-    }
+  };
 
 
 
