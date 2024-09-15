@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import '../index.css'
-
+import {
+  query,
+  collection,
+  where,
+  getDocs,
+  getDoc,
+  onSnapshot,
+  doc,
+} from "firebase/firestore";
+import { db } from "../firebase-config";
 function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,20 +44,62 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }
     }
   }, [dataCarrito]);
 
-  useEffect(() => {
-    const fetchProductos = async () => {
-      try {
-        const response = await fetch(`https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${identificador}`);
-        const data = await response.json();
-        setDataProductos(data.productos);
-        console.log("la data es", data.productos);
-      } catch (error) {
-        console.error("Error al obtener los datos:", error);
-      }
-    };
 
+  const fetchProductos = async () => {
+    try {
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+  
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+  
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+  
+      const userDocRef = collection(db, "productos", uidUser, "productos");
+  
+      const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+        const productos = [];
+        snapshot.forEach((doc) => {
+          productos.unshift({ id: doc.id, ...doc.data() });
+        });
+  
+        setDataProductos(productos);
+        console.log("data productos", productos);
+      });
+  
+      return unsubscribe;
+    } catch (error) {
+      console.error("Error al obtener los datos:", error.message);
+    }
+  };
+  
+  useEffect(() => {
     fetchProductos();
-  }, [identificador]);
+  }, []);
+
+
+  // useEffect(() => {
+  //   const fetchProductos = async () => {
+  //     try {
+  //       const response = await fetch(`https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${identificador}`);
+  //       const data = await response.json();
+  //       setDataProductos(data.productos);
+  //       console.log("la data es", data.productos);
+  //     } catch (error) {
+  //       console.error("Error al obtener los datos:", error);
+  //     }
+  //   };
+
+  //   fetchProductos();
+  // }, [identificador]);
 
   const filteredProducts = dataProductos.filter((product) =>
     product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||

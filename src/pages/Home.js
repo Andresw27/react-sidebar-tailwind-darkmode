@@ -39,7 +39,7 @@ const Home = ({ totalValue }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(10);
+  const [rowsPerPage] = useState(7);
   const [valorTotal, setValorTotal] = useState(0);
   const [showAlert, setShowAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
@@ -60,7 +60,9 @@ const Home = ({ totalValue }) => {
     naceptado,
     ndistribucion,
     nentregado,
-    ncancelado
+    ncancelado,
+    idBot,
+    webhook,
   } = useSelector((state) => state.user);
 
   const editableRef = useRef(null);
@@ -129,86 +131,83 @@ const Home = ({ totalValue }) => {
   const closeModal = () => setModalOpen(false);
 
   //fetch pedidos
+  const fetchOrders = async () => {
+    try {
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+  
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+  
+      if (!uidUser) {
+        console.log("No user found with the given identifier");
+        return;
+      }
+  
+      console.log("UID of usersss:", uidUser);
+  
+      const ordersRef = collection(db, "pedidos", uidUser, "historial");
+      const ordersQuery = query(ordersRef, orderBy("createAt", "asc"));
+  
+      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+        const pedidos = [];
+        snapshot.forEach((doc) => {
+          const pedido = doc.data();
+  
+          console.log("Pedido Data:", pedido);
+  
+          const valorTotal = Array.isArray(pedido.carrito)
+            ? pedido.carrito.reduce(
+                (acc, item) => acc + item.cantidad * item.valorp,
+                0
+              )
+            : 0;
+  
+          pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
+        });
+  
+        console.log("Total de Pedidos:", pedidos);
+  
+        const valorTotalPedidos = pedidos.reduce(
+          (acc, pedido) => acc + pedido.valor,
+          0
+        );
+        setValorTotal(valorTotalPedidos);
+        setDataOrder(pedidos);
+      });
+  
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
+  };
+  
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+  
+
   // const fetchOrders = async () => {
   //   try {
-  //     const userQuery = query(
-  //       collection(db, "usuarios"),
-  //       where("identificador", "==", identificador)
+  //     const response = await fetch(
+  //       `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${identificador}`
   //     );
-
-  //     const querySnapshot = await getDocs(userQuery);
-  //     let uidUser = "";
-  //     querySnapshot.forEach((doc) => {
-  //       uidUser = doc.id;
-  //     });
-
-  //     if (!uidUser) {
-  //       console.log("No user found with the given identifier");
-  //       return;
-  //     }
-
-  //     console.log("UID of user:", uidUser);
-
-  //     const ordersRef = collection(db, "pedidos", uidUser, "historial");
-  //     const ordersQuery = query(ordersRef, orderBy("createdAt", "asc"));
-
-  //     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-  //       const pedidos = [];
-  //       snapshot.forEach((doc) => {
-  //         const pedido = doc.data();
-
-  //         const valorTotal = Array.isArray(pedido.carrito)
-  //           ? pedido.carrito.reduce(
-  //               (acc, item) => acc + item.cantidad * item.valorp,
-  //               0
-  //             )
-  //           : 0;
-
-  //         pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
-  //       });
-
-  //       const valorTotalPedidos = pedidos.reduce(
-  //         (acc, pedido) => acc + pedido.valor,
-  //         0
-  //       );
-  //       setValorTotal(valorTotalPedidos);
-  //       setDataOrder(pedidos);
-  //       console.log("pedidos", pedidos);
-  //     });
-
-  //     return () => unsubscribe();
+  //     const data = await response.json();
+  //     setDataOrder(data.pedidos);
+  //     console.log("la data essss", data.pedidos);
   //   } catch (error) {
-  //     console.error("Error fetching orders:", error);
+  //     // console.error("Error al obtener los datos:", error);
   //   }
   // };
 
   // useEffect(() => {
   //   fetchOrders();
   // }, []);
-
-
-  const fetchOrders = async () => {
-    try {
-    
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${identificador}`
-      );
-      const data = await response.json();
-      setDataOrder(data.pedidos);
-      console.log("la data essss", data.pedidos);
-    } catch (error) {
-      // console.error("Error al obtener los datos:", error);
-    } 
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-
-
-
-
 
   const getTrClasses = (estado) => {
     switch (estado) {
@@ -269,10 +268,9 @@ const Home = ({ totalValue }) => {
             "Error al actualizar el estado del pedido. Inténtalo nuevamente."
           );
           setShowErrorAlert(true);
-        } 
-          setAlertMessage("Estado actualizado con éxito");
-          setShowAlert(true);
-        
+        }
+        setAlertMessage("Estado actualizado con éxito");
+        setShowAlert(true);
       } catch (error) {
         console.error(
           "Error al actualizar el estado del pedido:",
@@ -285,32 +283,33 @@ const Home = ({ totalValue }) => {
         ...newDataOrder[orderIndex],
       };
 
-      if (value === "aceptado") {
-        dataPedido.flag = 1;
-        dataPedido.naceptado = naceptado;
+      if (value === "Aceptado") {
+        dataPedido.flag = 3;
+        dataPedido.plantilla = naceptado;
+        dataPedido.idBot = idBot;
       } else if (value === "Distribucion") {
-        dataPedido.flag = 2;
-        dataPedido.ndistribucion = ndistribucion;
+        dataPedido.flag = 3;
+        dataPedido.idBot = idBot;
+        dataPedido.plantilla = ndistribucion;
       } else if (value === "Entregado") {
         dataPedido.flag = 3;
-        dataPedido.nentregado = nentregado;
+        dataPedido.plantilla = nentregado;
+        dataPedido.idBot = idBot;
       } else if (value === "Cancelado") {
-        dataPedido.flag = 4;
-        dataPedido.ncancelado = ncancelado;
+        dataPedido.flag = 3;
+        dataPedido.plantilla = ncancelado;
+        dataPedido.idBot = idBot;
       }
 
       if (dataPedido.flag) {
         try {
-          const response1 = await fetch(
-            "https://hook.us1.make.com/39p4vx3px9r7xl4myp3hcmvoonucp39t",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(dataPedido),
-            }
-          );
+          const response1 = await fetch(webhook, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(dataPedido),
+          });
 
           if (!response1.ok) {
             console.log("Error al enviar objeto");
@@ -347,24 +346,24 @@ const Home = ({ totalValue }) => {
         );
   
         if (!response.ok) {
-          setAlertMessage(
-            "Error al actualizar los datos del pedido. Inténtalo nuevamente."
-          );
-          setShowErrorAlert(true);
-          return; // Early return to avoid setting success alert
+          throw new Error("Error al actualizar los datos del pedido. Inténtalo nuevamente.");
         }
+  
+        // Actualiza el estado local solo después de una respuesta exitosa
+        setDataOrder((prevDataOrder) =>
+          prevDataOrder.map((order) =>
+            order.id === editOrderId ? { ...order, ...dataOrder } : order
+          )
+        );
   
         setAlertMessage("Información actualizada con éxito");
         setShowAlert(true);
       } catch (error) {
-        setAlertMessage(
-          "Ocurrió un error al intentar actualizar el pedido. Por favor, inténtalo de nuevo más tarde."
-        );
+        setAlertMessage(error.message || "Ocurrió un error al intentar actualizar el pedido. Por favor, inténtalo de nuevo más tarde.");
         setShowErrorAlert(true);
         console.error("Error:", error);
-        // Optionally revert local changes or perform additional error handling
       } finally {
-        setEditOrderId(null); // Clean up the edit state
+        setEditOrderId(null); // Limpiar el estado de edición
       }
     }
   };
@@ -429,14 +428,9 @@ const Home = ({ totalValue }) => {
     (order) => order.estado === "Entregado"
   ).length;
 
-
-
   const totalPedidosCancelados = dataOrder.filter(
     (order) => order.estado === "Cancelado"
   ).length;
-
-
-
 
   //Generador de fatura pdf
   const generarFactura = (order) => {
@@ -541,21 +535,28 @@ const Home = ({ totalValue }) => {
         false) ||
       (product.numeroWP?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
-      (product.numeroContacto?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+      (product.numeroContacto
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.direccion?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
-      (product.puntoReferencia?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+      (product.puntoReferencia
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.metodoPago?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false) ||
-      (product.valor?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ??
+      (product.valor
+        ?.toString()
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ??
         false) ||
       (product.estado?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-        false)||
-        (product.pedidoId?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+        false) ||
+      (product.pedidoId?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false);
 
     const matchesFilters = selectedFilters.estado
@@ -606,20 +607,7 @@ const Home = ({ totalValue }) => {
           <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
             Bienvenidos
           </p>
-          <div className="flex gap-8">
-            <div className="flex justify-center gap-2 items-center bg-slate-50  p-2 rounded-full">
-              <MdDateRange />
-              <p className="text-1xl text-gray-500 whitespace-nowrap">
-                {fechaCompleta}
-              </p>
-            </div>
-            <div className="flex justify-center gap-2 items-center bg-slate-50  p-2 rounded-full">
-              <FaRegClock />
-              <p className="text-1xl text-gray-500 whitespace-nowrap">
-                {horaActual}
-              </p>
-            </div>
-          </div>
+        
         </div>
         <div className="md:px-2 grid grid-cols-1 md:grid-cols-1 gap-4 ">
           <div className="col-span-4 grid grid-cols-5 gap-3 mb-4">
@@ -651,7 +639,6 @@ const Home = ({ totalValue }) => {
                 </p>
               </div>
             </div>
-         
 
             {/* Pedidos Distribución */}
             <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-yellow-100 bg-opacity-80 backdrop-blur-sm shadow-md">
@@ -685,8 +672,8 @@ const Home = ({ totalValue }) => {
               </div>
             </div>
 
-          {/* Total Pedidos cancelados*/ }
-          <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-200 bg-opacity-80 backdrop-blur-sm shadow-md">
+            {/* Total Pedidos cancelados*/}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-200 bg-opacity-80 backdrop-blur-sm shadow-md">
               <div className="flex justify-center items-center w-16 h-16  ">
                 <MdCancel className="text-4xl" />
               </div>
@@ -699,11 +686,6 @@ const Home = ({ totalValue }) => {
                 </p>
               </div>
             </div>
-
-
-
-
-
           </div>
         </div>
 
@@ -827,11 +809,7 @@ const Home = ({ totalValue }) => {
               >
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                   <tr>
-                    <th
-                      scope="col"
-                     
-                      className="px-2 py-2 sm:px-4 sm:py-3"
-                    >
+                    <th scope="col" className="px-2 py-2 sm:px-4 sm:py-3">
                       Id Pedido
                     </th>
                     <th
@@ -854,13 +832,13 @@ const Home = ({ totalValue }) => {
                     <th scope="col" className="px-2 py-2 sm:px-0 sm:py-3">
                       Numero Contacto
                     </th>
-                    <th scope="col" className="px-2 py-2 sm:px-0 sm:py-3">
+                    <th scope="col" className="px-2 py-2 sm:px-6 sm:py-3">
                       Direccion
                     </th>
                     <th scope="col" className="px-2 py-2 sm:px-4 sm:py-3">
                       Punto de referencia
                     </th>
-                    <th scope="col" className="px-2 py-2 sm:px-20 sm:py-3">
+                    <th scope="col" className="px-2 py-2 sm:px-4 sm:py-3">
                       Descripcion
                     </th>
                     <th scope="col" className="px-2 py-2 sm:px-0 sm:py-3">
@@ -880,7 +858,7 @@ const Home = ({ totalValue }) => {
                 <tbody>
                   {currentProducts.map((order, index) => (
                     <tr key={order.id} className={getTrClasses(order.estado)}>
-                      <td  className="px-2 py-2 sm:px-4 sm:py-3">
+                      <td className="px-2 py-2 sm:px-4 sm:py-3">
                         <Tooltip content={order.pedidoId}>
                           <span>{order.pedidoId}</span>
                         </Tooltip>
@@ -1132,7 +1110,6 @@ const Home = ({ totalValue }) => {
                             <option value="Distribucion">Distribucion</option>
                             <option value="Entregado">Entregado</option>
                             <option value="Cancelado">Cancelado</option>
-
                           </select>
                         ) : (
                           <select
@@ -1149,7 +1126,6 @@ const Home = ({ totalValue }) => {
                             <option value="Distribucion">Distribucion</option>
                             <option value="Entregado">Entregado</option>
                             <option value="Cancelado">Cancelado</option>
-
                           </select>
                         )}
                       </td>

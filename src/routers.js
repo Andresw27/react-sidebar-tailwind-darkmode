@@ -12,6 +12,9 @@ import Clientes from "./pages/Clientes";
 import UserPerfil from "./pages/PerfilUser";
 import RedimirPuntos from "./pages/RedimirPuntos";
 import ValidarPuntos from "./pages/AdminPuntosEspecial"
+import Publicidad from "./pages/PublicidadWeb"
+import MenuWeb from "./pages/MenúWeb"
+import Menus from "./pages/CategoriasMenu";
 import app from "./firebase-config";
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -49,7 +52,7 @@ const Routers = () => {
       const unsubscribe = onSnapshot(userDocRef, (userDocSnap) => {
         if (userDocSnap.exists()) {
           const dataUser = userDocSnap.data();
-          console.log(dataUser,"holass")
+          // console.log(dataUser,"holass")
           dispatch(setUserData({
             PuntosporValor: dataUser.PuntosporValor,
             uid: user.uid,
@@ -70,14 +73,21 @@ const Routers = () => {
             password: dataUser.password,
             webhook: dataUser.webhook,
             npremioentregado:dataUser.npremioentregado,
-            ncancelado:dataUser.ncancelado
+            ncancelado:dataUser.ncancelado,
+            logo:dataUser.logo,
+            Rfacebook:dataUser.Rfacebook,
+            Rinstagram:dataUser.Rinstagram,
+            Rtiktok:dataUser.Rtiktok,
+            linkwp1:dataUser.linkwp1,
+            linkwp2:dataUser.linkwp2
+
           }));
         } else {
-          console.log('No such document!');
+          // console.log('No such document!');
         }
         setUserLoading(false);
       }, (error) => {
-        console.error('Error al obtener datos de usuario:', error);
+        // console.error('Error al obtener datos de usuario:', error);
         setUserLoading(false);
       });
       return () => unsubscribe();
@@ -122,6 +132,10 @@ const Routers = () => {
             <Route path="/puntos" element={<AdminPuntos />} />
             <Route path="/validarpuntos" element={<ValidarPuntos />} />
             <Route path="/productos" element={<Productos />} />
+            <Route path="/menuweb" element={<MenuWeb />} />
+            <Route path="/publicidad" element={<Publicidad />} />
+            <Route path="/Menus" element={<Menus/>} />
+
           </>
         ) : (
           <Route path="/" element={<Login />} />

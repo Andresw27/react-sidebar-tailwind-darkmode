@@ -27,7 +27,10 @@ const Login = () => {
   const user =useContext(UserContext)
   const [userRole, setUserRole] = useState(null);
   const [UserPaquete,setUserPaquete]=useState(null)
-  console.log('usuario',user)
+  const [token, setToken] =useState("");
+
+
+  // console.log('usuario',user)
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -79,9 +82,40 @@ const Login = () => {
           navigate('/Ordenes');
         } else if (userRole === 'Usuario' && userPaquete === 'JeicyEspecial') {
           navigate('/validarpuntos');
+        } else if (userRole === 'Usuario' && userPaquete === 'JeicyPuntos') {
+          navigate('/puntos');
         } else {
           navigate('/Ordenes');
         }
+
+
+        const handleSubmitToken = async (userData) => {
+          try {
+                    
+            const response = await fetch(
+              `https://us-central1-jeicydelivery.cloudfunctions.net/app/loginToken`,
+              {
+                method: "POST", 
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(userData), 
+              }
+            );
+        
+            if (!response.ok) {
+              // console.error("Error al enviar el token al servidor");
+            } else {
+              const responseData = await response.json(); // Parse the response if necessary
+              // console.log("Token :", responseData);
+            }
+          } catch (error) {
+            // console.error("Error al enviar el token:", error);
+          }
+        };
+        
+        await handleSubmitToken({ correo: userData.correo, password: userData.password });
+        
       }
       
     } catch (error) {

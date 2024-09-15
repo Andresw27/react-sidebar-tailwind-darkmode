@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Transition } from '@headlessui/react';
 
-const Alert = ({ message, onClose, duration = 1000, type = 'success' }) => {
+const Alert = ({ message, onClose, duration = 500, type = 'success' }) => {
   const [isShowing, setIsShowing] = useState(false);
 
   useEffect(() => {
     setIsShowing(true);
     const timer = setTimeout(() => {
       setIsShowing(false);
-      setTimeout(onClose, 1000); // Ajusta el tiempo de ocultamiento
+      setTimeout(onClose, 500); // Ajusta el tiempo de ocultamiento
     }, duration);
 
     return () => clearTimeout(timer);

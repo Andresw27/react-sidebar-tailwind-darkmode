@@ -30,3 +30,57 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #ff0000; /* Color del pulgar al pasar el cursor */
 }
+
+/* In your CSS file */
+/* Spinner styling */
+.spinner {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid #ffbb00;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  position: absolute;
+  top: 35%;
+  left: 25%;
+  transform: translate(-50%, -50%);
+  z-index: 1; /* Make sure spinner is above the image */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Gray out effect */
+.image-container {
+  position: relative;
+  display: inline-block;
+}
+
+.image-container img {
+  transition: filter 0.3s ease;
+}
+
+.image-container img.gray-out {
+  filter: grayscale(100%);
+}
+
+/* Container to ensure spinner is within the image */
+.image-container .spinner-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  visibility: hidden; /* Initially hidden */
+}
+
+.image-container.uploading .spinner-container {
+  visibility: visible;
+}
+

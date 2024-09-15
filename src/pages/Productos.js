@@ -1,22 +1,38 @@
-import React, { useEffect, useState,useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import Layout from "../components/Layout";
 import Modal from "../components/Modal";
 import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
-import { Tooltip } from "@material-tailwind/react";
+import { MenuItem, Tooltip } from "@material-tailwind/react";
 import Alert from "../components/Alert"; // Importa el componente de alerta
 import { IoSearch, IoClose } from "react-icons/io5";
+import { db } from "../firebase-config";
 
+import {
+  query,
+  collection,
+  where,
+  getDocs,
+  onSnapshot,
+  orderBy,
+} from "firebase/firestore";
 import { UserContext } from "../UserContext"; // Asegúrate de ajustar la ruta correcta
 import { useSelector } from "react-redux";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(5);
+  const [rowsPerPage] = useState(4);
   const [dataProductos, setDataProductos] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
   const [nombreProducto, setNombreProducto] = useState("");
   const [valorProducto, setValorProducto] = useState("");
+  const [descripcionProducto, setdescripcionProducto] = useState("");
+  const [menu, setMenu] = useState("");
+  const [categoriaMenu, setcategoriaMenu] = useState("");
+  const [calificacionProducto, setcalificacionProducto] = useState("");
+  const [estadoProducto, setestadoProducto] = useState("");
+  const [logoProducto, setlogoProducto] = useState("");
   const [showAlert, setShowAlert] = useState(false); // Estado para mostrar la alerta
   const [alertMessage, setAlertMessage] = useState("");
   const [showErrorAlert, setShowErrorAlert] = useState(false);
@@ -25,13 +41,36 @@ function Productos() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
   const [searchVisible, setSearchVisible] = useState(false);
-  
-  const {identificador}=useSelector(state=>state.user)
-
-  
+  const [selectedMenu, setSelectedMenu] = useState(null);
+  const [DataMenus, setDataMenus] = useState([]);
+  const [DataCategorias, setDataCategorias] = useState([]);
+  const { identificador, nombreEmpresa } = useSelector((state) => state.user);
+  console.log(identificador, nombreEmpresa);
 
   const handleSearchClick = () => {
     setSearchVisible(true);
+  };
+
+  //funciones de cambios en los inputs
+  const handlemenu = (event) => {
+    setMenu(event.target.value);
+    console.log(menu);
+  };
+  const handlemenuCategory = (event) => {
+    setcategoriaMenu(event.target.value);
+    console.log(event);
+  };
+  const handlecalificacionProducto = (event) => {
+    setcalificacionProducto(event.target.value);
+    console.log(calificacionProducto);
+  };
+  const handleEstadoProdcuto = (event) => {
+    setestadoProducto(event.target.value);
+    console.log(estadoProducto);
+  };
+
+  const handleImageChange = (e) => {
+    setlogoProducto(e.target.files[0]); // Almacena el archivo
   };
 
   const handleCloseClick = () => {
@@ -66,17 +105,40 @@ function Productos() {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  //  // Firestore-based fetchProductos function
   const fetchProductos = async () => {
     try {
-      const response = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/${identificador}`
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
       );
-      const data = await response.json();
-      setDataProductos(data.productos);
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const userDocRef = collection(db, "productos", uidUser, "productos");
+
+      const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+        const productos = [];
+        snapshot.forEach((doc) => {
+          productos.unshift({ id: doc.id, ...doc.data() });
+        });
+
+        setDataProductos(productos);
+        console.log("data productos", productos);
+      });
+
+      return unsubscribe;
     } catch (error) {
-      setAlertMessage("Error al obtener los datos. recarge la página e inténtalo nuevamente.");
-      setShowErrorAlert(true);
-      
+      console.error("Error al obtener los datos:", error.message);
     }
   };
 
@@ -87,12 +149,37 @@ function Productos() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const newProduct = {
-      nombre: nombreProducto,
-      precio: valorProducto,
-    };
+    if (!logoProducto) {
+      console.error("No se ha seleccionado ningún archivo.");
+      return;
+    }
 
     try {
+      const storage = getStorage();
+      const storageRef = ref(
+        storage,
+        `ImgProductosmenu/${nombreEmpresa}/${logoProducto.name}`
+      );
+
+      // Subir el archivo a Firebase Storage
+      await uploadBytes(storageRef, logoProducto);
+
+      // Obtener la URL de descarga del archivo
+      const logoURL = await getDownloadURL(storageRef);
+
+      const newProduct = {
+        nombre: nombreProducto,
+        precio: valorProducto,
+        descripcion: descripcionProducto,
+        foto: logoURL,
+        categoriaItem: categoriaMenu,
+        calificación: calificacionProducto,
+        estado: estadoProducto,
+        menuItem: menu,
+        popular: "1",
+      };
+
+      // Enviar los datos a la API
       const response = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/new/${identificador}`,
         {
@@ -105,24 +192,26 @@ function Productos() {
       );
 
       if (!response.ok) {
-        setAlertMessage("Error al registrar el producto. Inténtalo nuevamente.");
+        setAlertMessage(
+          "Error al registrar el producto. Inténtalo nuevamente."
+        );
         setShowErrorAlert(true);
         closeModal();
+      } else {
+        const result = await response.json();
+        setAlertMessage("Producto añadido con éxito");
+        setShowAlert(true);
+        setNombreProducto("");
+        setValorProducto("");
+        closeModal();
+        fetchProductos();
       }
-
-      const result = await response.json();
-      // console.log("Product registered successfully:", result);
-      setAlertMessage("Producto añadido con éxito");
-      setShowAlert(true);
-      setNombreProducto("");
-      setValorProducto("");
-      closeModal();
-      fetchProductos();
     } catch (error) {
-      // console.error("Error registering product:", error);
+      console.error("Error registrando el producto:", error);
+      setAlertMessage("Error al registrar el producto. Inténtalo nuevamente.");
+      setShowErrorAlert(true);
     }
   };
-
   const handleDelete = async () => {
     if (!selectedProduct) return;
 
@@ -153,17 +242,28 @@ function Productos() {
     setProductToEdit(product);
     setNombreProducto(product.nombre);
     setValorProducto(product.valor);
+    setdescripcionProducto(product.descripcion);
+    setMenu(product.menuItem);
+    setcategoriaMenu(product.categoriaItem);
+    setcalificacionProducto(product.calificación);
+    setestadoProducto(product.estado);
     setEditModalOpen(true);
+    console.log(product);
   };
 
   const closeEditModal = () => {
     setProductToEdit(null);
     setNombreProducto("");
     setValorProducto("");
+    setdescripcionProducto("");
+    setMenu("");
+    setcategoriaMenu("");
+    setcalificacionProducto("");
+    setestadoProducto("");
     setEditModalOpen(false);
   };
 
-  const handleEditSubmit = async (e) => {
+  const handleEditSubmit = async (e, logoURL) => {
     e.preventDefault();
 
     if (!productToEdit) {
@@ -174,8 +274,13 @@ function Productos() {
       ...productToEdit,
       nombre: nombreProducto,
       precio: valorProducto,
+      descripcion: descripcionProducto,
+      foto: logoURL,
+      categoriaItem: categoriaMenu,
+      calificación: calificacionProducto,
+      estado: estadoProducto,
+      menuItem: menu,
     };
-
 
     try {
       const response = await fetch(
@@ -189,11 +294,10 @@ function Productos() {
         }
       );
 
-     if (!response.ok) {
+      if (!response.ok) {
         setAlertMessage("Error al editar el producto. Inténtalo nuevamente.");
         setShowErrorAlert(true);
         closeEditModal();
-
       }
 
       const result = await response.json();
@@ -204,7 +308,141 @@ function Productos() {
       fetchProductos();
     } catch (error) {
       // console.error("Error updating product:", error);
-    } 
+    }
+  };
+
+  
+//Obtner Menus
+  const fetchMenus = async () => {
+    try {
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      const userDocRef = collection(db, "categoriaMenu", uidUser, "Menus");
+
+      const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+        const menus = [];
+        snapshot.forEach((doc) => {
+          menus.unshift({ IdMenu: doc.id, ...doc.data() });
+        });
+
+        setDataMenus(menus);
+        console.log("data productos", menus);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error("Error al obtener los datos:", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenus();
+  }, []);
+//Obtener 
+  const fetchCategoriaMenu = async () => {
+    try {
+      // Paso 1: Consultar la colección "usuarios" para obtener el UID del usuario
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador) // Asegúrate de tener disponible el identificador
+      );
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id; // Obtenemos el ID del documento del usuario
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      // Paso 2: Obtener todos los menús del usuario
+      const menusCollectionRef = collection(
+        db,
+        "categoriaMenu",
+        uidUser,
+        "Menus"
+      );
+      const menusSnapshot = await getDocs(menusCollectionRef);
+      const menusId = [];
+      menusSnapshot.forEach((doc) => {
+        menusId.unshift({ id: doc.id });
+      });
+
+      console.log(menusId, "menusId");
+
+      // Paso 3: Crear un array para almacenar todas las categorías de todos los menús
+      const todasLasCategorias = [];
+
+      // Paso 4: Recorrer todos los menús y traer las categorías de cada uno
+      const unsubscribeArray = menusId.map((menuDoc) => {
+        const menuId = menuDoc.id; // Obtener el ID del menú actual
+        const categoriasCollectionRef = collection(
+          db,
+          "categoriaMenu",
+          uidUser,
+          "Menus",
+          menuId,
+          "categorias"
+        );
+
+        // Escuchar los cambios en cada subcolección de categorías
+        return onSnapshot(categoriasCollectionRef, (snapshot) => {
+          const categorias = [];
+          snapshot.forEach((doc) => {
+            categorias.push({ id: doc.id, ...doc.data() });
+          });
+
+          // Añadir las categorías al array principal
+          todasLasCategorias.push(...categorias);
+
+          // Actualizar el estado con todas las categorías obtenidas
+          setDataCategorias([...todasLasCategorias]);
+          console.log("Categorías obtenidas:", todasLasCategorias);
+        });
+      });
+
+      // Retornar una función para desuscribirse de todas las colecciones si es necesario
+      return () => {
+        unsubscribeArray.forEach((unsubscribe) => unsubscribe());
+      };
+    } catch (error) {
+      console.error("Error al obtener las categorías:", error.message);
+    }
+  };
+
+  // Ejecutar la función en el useEffect
+  useEffect(() => {
+    fetchCategoriaMenu();
+  }, []);
+
+  // Filtrar las categorías según el IdMenu seleccionado
+  const categoriasFiltradas = DataCategorias.filter(
+    (categoria) => categoria.IdMenu === selectedMenu
+  );
+
+  const handleMenuChange = (event) => {
+    const selectedMenuId = event.target.value;
+
+    // Actualiza ambos estados
+    setMenu(selectedMenuId); // Actualiza el menú
+    setSelectedMenu(selectedMenuId); // Actualiza el menú seleccionado
   };
 
   return (
@@ -212,7 +450,7 @@ function Productos() {
       {showAlert && (
         <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
       )}
-      
+
       {showErrorAlert && (
         <Alert
           message={alertMessage}
@@ -280,41 +518,176 @@ function Productos() {
           >
             <div>
               <form className="space-y-4" onSubmit={handleSubmit}>
-                
-                <div>
-                  <label
-                    htmlFor="text"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                  >
-                    Nombre Producto
-                  </label>
-                  <input
-                    type="text"
-                    name="nombreProducto"
-                    value={nombreProducto}
-                    onChange={(e) => setNombreProducto(e.target.value)}
-                    id="nombreProducto"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                    placeholder="Nombre producto"
-                    required
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="number"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                  >
-                    Valor Producto
-                  </label>
-                  <input
-                    type="number"
-                    name="valorProducto"
-                    value={valorProducto}
-                    onChange={(e) => setValorProducto(e.target.value)}
-                    id="valorProducto"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                    required
-                  />
+                <div className="p-4">
+                  <div className="-mx-3 md:flex mb-6">
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label
+                        htmlFor="text"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Nombre Producto
+                      </label>
+                      <input
+                        type="text"
+                        name="nombreProducto"
+                        value={nombreProducto}
+                        onChange={(e) => setNombreProducto(e.target.value)}
+                        id="nombreProducto"
+                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                        placeholder="Nombre producto"
+                        required
+                      />
+                    </div>
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label
+                        htmlFor="number"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Descripción Producto
+                      </label>
+                      <input
+                        type="text"
+                        name="descripcionProducto"
+                        value={descripcionProducto}
+                        onChange={(e) => setdescripcionProducto(e.target.value)}
+                        id="descripcionProducto"
+                        placeholder="Descripción producto"
+                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                        required
+                      />
+                    </div>
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label
+                        htmlFor="number"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Valor Producto
+                      </label>
+                      <input
+                        type="number"
+                        name="valorProducto"
+                        value={valorProducto}
+                        onChange={(e) => setValorProducto(e.target.value)}
+                        id="valorProducto"
+                        placeholder="Valor producto"
+                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="-mx-3 md:flex mb-6">
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label
+                        htmlFor="text"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Imagen Producto
+                      </label>
+                      <input
+                        type="file"
+                        id="imgProducto"
+                        onChange={handleImageChange}
+                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                        required
+                      />
+                    </div>
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                        Menú
+                      </label>
+                      <select
+                        className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                        defaultValue=""
+                        required
+                        id="menu"
+                        onChange={handleMenuChange}
+                      >
+                        <option value="" hidden>
+                          Selecciona un menú
+                        </option>
+                        {DataMenus.map((menu) => (
+                          <option value={menu.IdMenu}>{menu.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label
+                        htmlFor="number"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Categoria Menú
+                      </label>
+                      <select
+                        className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                        defaultValue=""
+                        required
+                        onChange={handlemenuCategory}
+                        id="categoriaMenu"
+                      >
+                        <option value="" hidden>
+                          Selecciona una categoria del menú
+                        </option>
+                        {categoriasFiltradas.length > 0 ? (
+                          categoriasFiltradas.map((categoria) => (
+                            <option value={categoria.IdCategoria
+                            }>
+                              {categoria.nombre}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>
+                            No hay categorías para este menú
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="-mx-3 md:flex mb-6">
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                        Calificación Producto
+                      </label>
+                      <select
+                        className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                        defaultValue=""
+                        required
+                        id="calificacionProducto"
+                        onChange={handlecalificacionProducto}
+                      >
+                        <option value="" hidden>
+                          Selecciona una opción
+                        </option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                      </select>
+                    </div>
+                    <div className="md:w-full px-3 mb-6 md:mb-0">
+                      <label
+                        htmlFor="number"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Estado Producto
+                      </label>
+                      <select
+                        className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                        defaultValue=""
+                        required
+                        onChange={handleEstadoProdcuto}
+                        id="estadoProducto"
+                      >
+                        <option value="" hidden>
+                          Selecciona una opción
+                        </option>
+                        <option value="Activo">Activo</option>
+                        <option value="Inactivo">Inactivo</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <button
@@ -334,8 +707,24 @@ function Productos() {
                 Nombre Producto
               </th>
               <th scope="col" className="px-6 py-3">
+                Imagen 
+              </th>
+              <th scope="col" className="px-6 py-3">
+                Descripción
+              </th>
+              <th scope="col" className="px-6 py-3">
                 Precio
               </th>
+              <th scope="col" className="px-6 py-3">
+                Menú
+              </th>
+              <th scope="col" className="px-6 py-3">
+                Categoria
+              </th>
+              <th scope="col" className="px-6 py-3">
+                Estado
+              </th>
+           
               <th scope="col" className="px-6 py-3">
                 Acción
               </th>
@@ -343,11 +732,13 @@ function Productos() {
           </thead>
           <tbody>
             {currentProducts.length === 0 ? (
-              <p className="text-center text-title mt-10 mb-10">
-                No hay productos disponibles por favor agregue un producto
-              </p>
+              <tr>
+                <td colSpan="10" className="text-center text-base mt-14 mb-14">
+                  No hay productos disponibles por favor agregue un producto
+                </td>
+              </tr>
             ) : (
-              currentProducts.map((product, index) => (
+              currentProducts.map((product, index ,menu) => (
                 <tr
                   key={index}
                   className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -356,11 +747,38 @@ function Productos() {
                     {product.nombre}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    <img
+                      className="h-12 w-12 rounded-md"
+                      src={product.foto}
+                    ></img>
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    {product.descripcion}
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                     {`${Number(product.valor).toLocaleString("es-CO", {
                       style: "currency",
                       currency: "COP",
                     })}`}{" "}
                   </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    {product.nombre}
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    {product.categoriaItem}
+                  </td>
+                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                    <span
+                      className={
+                        product.estado === "Inactivo"
+                          ? "bg-red-100 text-red-800 font-medium py-1  px-4  rounded-full dark:bg-red-900 dark:text-red-300"
+                          : "bg-green-100 text-green-800  font-medium py-1  px-4 rounded-full dark:bg-green-900 dark:text-green-300"
+                      }
+                    >
+                      {product.estado}
+                    </span>
+                  </td>
+            
                   <td className="px-3 py-4 flex gap-2">
                     <Tooltip content="Editar">
                       <button
@@ -391,47 +809,181 @@ function Productos() {
           isOpen={editModalOpen}
           nombre="Editar Producto"
           onClose={closeEditModal}
-           size="auto"
-           Fondo="auto"
-
+          size="auto"
+          Fondo="auto"
         >
           <div>
             <form className="space-y-4" onSubmit={handleEditSubmit}>
-              <div>
-                <label
-                  htmlFor="text"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Nombre Producto
-                </label>
-                <input
-                  type="text"
-                  name="nombreProducto"
-                  value={nombreProducto}
-                  onChange={(e) => setNombreProducto(e.target.value)}
-                  id="nombreProducto"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                  placeholder="Nombre producto"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="number"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Valor Producto
-                </label>
-                <input
-                  type="number"
-                  name="valorProducto"
-                  value={valorProducto}
-                  onChange={(e) => setValorProducto(e.target.value)}
-                  id="valorProducto"
-                  placeholder="$"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                  required
-                />
+              <div className="p-4">
+                <div className="-mx-3 md:flex mb-6">
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label
+                      htmlFor="text"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Nombre Producto
+                    </label>
+                    <input
+                      type="text"
+                      name="nombreProducto"
+                      value={nombreProducto}
+                      onChange={(e) => setNombreProducto(e.target.value)}
+                      id="nombreProducto"
+                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                      placeholder="Nombre producto"
+                      required
+                    />
+                  </div>
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label
+                      htmlFor="number"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Descripción Producto
+                    </label>
+                    <input
+                      type="text"
+                      name="descripcionProducto"
+                      value={descripcionProducto}
+                      onChange={(e) => setdescripcionProducto(e.target.value)}
+                      id="descripcionProducto"
+                      placeholder="Descripción producto"
+                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                      required
+                    />
+                  </div>
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label
+                      htmlFor="number"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Valor Producto
+                    </label>
+                    <input
+                      type="number"
+                      name="valorProducto"
+                      value={valorProducto}
+                      onChange={(e) => setValorProducto(e.target.value)}
+                      id="valorProducto"
+                      placeholder="Valor producto"
+                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="-mx-3 md:flex mb-6">
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label
+                      htmlFor="text"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Imagen Producto
+                    </label>
+                    <input
+                      type="file"
+                      id="imgProducto"
+                      onChange={handleImageChange}
+                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                    />
+                  </div>
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                      Menú
+                    </label>
+                    <select
+                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                      defaultValue=""
+                      id="menu"
+                      value={menu || ""}
+                      onChange={(e) => setMenu(e.target.value)}
+                    >
+                      <option value="" disabled>
+                        {menu ? "Selecciona una menú" : "Sin menú definido"}
+                      </option>
+                      <option value="MenuPrincipal">Menu Principal</option>
+                      <option value="Menu segundario">Menu segundario</option>
+                      <option value="Menu x">Menu x</option>
+                      <option value="Menu a">Menu a</option>
+                      <option value="Menu e">Menu e</option>
+                    </select>
+                  </div>
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label
+                      htmlFor="number"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Categoria Menú
+                    </label>
+                    <select
+                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                      defaultValue=""
+                      value={categoriaMenu || ""}
+                      onChange={(e) => setcategoriaMenu(e.target.value)}
+                      id="categoriaMenu"
+                    >
+                      <option value="" disabled>
+                        {categoriaMenu
+                          ? "Selecciona una categoria"
+                          : "Sin categoria definida"}
+                      </option>
+                      <option value="Entradas">Entradas</option>
+                      <option value="Fuertes">Fuertes</option>
+                      <option value="Hamburguezas">Hamburguezas</option>
+                      <option value="Perros Calientes">Perros Calientes</option>
+                      <option value="Bebidas">Bebidas</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="-mx-3 md:flex mb-6">
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                      Calificación Producto
+                    </label>
+                    <select
+                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                      defaultValue=""
+                      value={calificacionProducto || ""}
+                      onChange={(e) => setcalificacionProducto(e.target.value)}
+                      id="calificacionProducto"
+                    >
+                      <option value="" disabled>
+                        {calificacionProducto
+                          ? "Selecciona una calificación"
+                          : "Sin calificación definida"}
+                      </option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                    </select>
+                  </div>
+                  <div className="md:w-full px-3 mb-6 md:mb-0">
+                    <label
+                      htmlFor="number"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Estado Producto
+                    </label>
+                    <select
+                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
+                      defaultValue=""
+                      value={estadoProducto || ""}
+                      onChange={(e) => setestadoProducto(e.target.value)}
+                      id="estadoProducto"
+                    >
+                      <option value="" disabled>
+                        {estadoProducto
+                          ? "Selecciona un estado"
+                          : "Sin estado definido"}
+                      </option>
+                      <option value="Activo">Activo</option>
+                      <option value="Inactivo">Inactivo</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -447,9 +999,8 @@ function Productos() {
           isOpen={isModalOpenn}
           nombre="Eliminar Producto"
           onClose={closeModall}
-           size="auto"
-           Fondo="auto"
-
+          size="auto"
+          Fondo="auto"
         >
           {selectedProduct && (
             <div className="mt-4">

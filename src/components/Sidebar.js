@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Tooltip } from "@material-tailwind/react";
 import { BsArrowLeftCircle } from "react-icons/bs";
 import { FaHome, FaHamburger, FaUser, FaHandPointRight, FaCubes } from "react-icons/fa";
+import { IoFastFoodSharp } from "react-icons/io5";
 import { auth } from "../firebase-config";
 import Logo from "../assets/jeicy.png";
 import Logosmall from "../assets/jeicyy.png";
@@ -10,7 +11,9 @@ import fetchUserData from "./data";
 import HamburgerButton from "./HamburgerMenuButton/HamburgerButton";
 import { UserContext } from "../UserContext";
 
-const Sidebar = () => {
+
+  const Sidebar = () => {
+                          
   const [open, setOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [subMenuOpen, setSubMenuOpen] = useState(null);
@@ -53,9 +56,55 @@ const Sidebar = () => {
           activeSrc: <FaHome />,
           roles: ["Usuario"],
         },
+        // {
+        //   title: "Productos",
+        //   path: "/productos",
+        //   src: <FaHamburger />,
+        //   activeSrc: <FaHamburger />,
+        //   roles: ["Usuario"],
+        // },
+        // {
+        //   title: "Menus",
+        //   path: "/Menus",
+        //   src: <FaHamburger />,
+        //   activeSrc: <FaHamburger />,
+        //   roles: ["Usuario"],
+        // },
+      ],
+    },
+    {
+      title: "Jeicy Menú",
+      path: "#",
+      src: <IoFastFoodSharp />,
+      activeSrc: <IoFastFoodSharp />,
+      roles: ["Usuario"],
+      paquete: ["JeicyPedidos", "JeicyFull"],
+      subMenus: [
+       
         {
           title: "Productos",
           path: "/productos",
+          src: <FaHamburger />,
+          activeSrc: <FaHamburger />,
+          roles: ["Usuario"],
+        },
+        {
+          title: "Menús",
+          path: "/Menus",
+          src: <FaHamburger />,
+          activeSrc: <FaHamburger />,
+          roles: ["Usuario"],
+        },
+        {
+          title: "Página Menú Web",
+          path: "/menuweb",
+          src: <FaHamburger />,
+          activeSrc: <FaHamburger />,
+          roles: ["Usuario"],
+        },
+        {
+          title: "Publicidad Web",
+          path: "/publicidad",
           src: <FaHamburger />,
           activeSrc: <FaHamburger />,
           roles: ["Usuario"],

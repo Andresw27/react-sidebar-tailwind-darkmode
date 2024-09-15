@@ -13,6 +13,7 @@ import {
   where,
   getDocs,
   onSnapshot,
+  orderBy
 } from "firebase/firestore";
 
 function RedimirPuntos() {
@@ -23,7 +24,7 @@ function RedimirPuntos() {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
-  const { identificador , npremioentregado} = useSelector((state) => state.user);
+  const { identificador , npremioentregado,webhook,idBot} = useSelector((state) => state.user);
   const [openFilter, setOpenFilter] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
     estado: null,
@@ -104,20 +105,21 @@ function RedimirPuntos() {
       }
 
       const userDocRef = collection(db, "usuarios", uidUser, "redenciones");
+      const ordersQuery = query(userDocRef, orderBy("createAt", "asc"));
 
-      const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
         const solicitudes = [];
         snapshot.forEach((doc) => {
           solicitudes.unshift({ id: doc.id, ...doc.data() });
         });
 
         setSolicitudesData(solicitudes);
-        console.log("data recibos", solicitudes);
+        // console.log("data recibos", solicitudes);
       });
 
       return unsubscribe;
     } catch (error) {
-      console.error("Error al obtener los datos:", error.message);
+      // console.error("Error al obtener los datos:", error.message);
     }
   };
 
@@ -126,7 +128,7 @@ function RedimirPuntos() {
   }, []);
 
   const handleEntregarPremio = async (id) => {
-    console.log(id, "ides");
+    // console.log(id, "idessss");
     try {
       const response = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/puntos/update/estado/${identificador}/${id}`,
@@ -158,18 +160,19 @@ function RedimirPuntos() {
       
       if (solicitudRedimida) {
 
-        solicitudRedimida.npremioentregado= npremioentregado;
+        solicitudRedimida.plantilla= npremioentregado;
         solicitudRedimida.flag=5;
+        solicitudRedimida.idBot=idBot;
+        solicitudRedimida.estado="Entregado";
 
         let dataSolicitudRedencion = {
           solicitudRedimida,  
         
         };
   
-        console.log(dataSolicitudRedencion, 'datasolicituddd');
+        // console.log(dataSolicitudRedencion, 'datasolicituddd');
   
-        const response1 = await fetch(
-          "https://hook.us1.make.com/39p4vx3px9r7xl4myp3hcmvoonucp39t",
+        const response1 = await fetch(webhook,
           {
             method: "POST",
             headers: {
@@ -180,9 +183,9 @@ function RedimirPuntos() {
         );
   
         if (!response1.ok) {
-          console.log("Error al enviar objeto");
+          // console.log("Error al enviar objeto");
         } else {
-          console.log("Objeto enviado correctamente", dataSolicitudRedencion);
+          // console.log("Objeto enviado correctamente", dataSolicitudRedencion);
         }
       }
     } catch (error) {
@@ -263,7 +266,7 @@ function RedimirPuntos() {
           </div>
         </div>
       </div>
-      <div className="col-span-2 relative overflow-x-auto shadow-md mx-4 sm:rounded-lg">
+      <div className="col-span-2 relative  shadow-md mx-4 sm:rounded-lg">
         <div className="flex justify-between items-center p-4">
           <div className="flex gap-4">
             {!searchVisible && (
@@ -374,7 +377,7 @@ function RedimirPuntos() {
           <tbody>
             {currentProducts.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center text-title mt-10 mb-10">
+                <td colSpan="10" className="text-center text-base mt-14 mb-14">
                   No hay solicitudes de redencion.
                 </td>
               </tr>
@@ -414,7 +417,7 @@ function RedimirPuntos() {
                           : "bg-green-100 text-green-800 text-base font-medium  p-1 rounded dark:bg-green-900 dark:text-green-300"
                       }
                     >
-                      {" "}
+                  
                       {punto.estado}
                     </span>
                   </td>

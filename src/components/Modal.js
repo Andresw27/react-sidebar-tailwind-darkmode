@@ -11,6 +11,7 @@ const Modal = ({
   conteTooltip,
   size = "fixed", 
   Fondo = "none" ,
+  
 }) => {
   if (!isOpen) return null;
 

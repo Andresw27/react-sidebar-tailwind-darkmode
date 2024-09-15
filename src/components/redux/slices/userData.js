@@ -22,6 +22,12 @@ const initialState = {
   webhook:'',
   npremioentregado:'',
   ncancelado: '',
+  Rinstagram: '',
+  Rfacebook: '',
+  Rtiktok: '',
+  linkwp1: '',
+  linkwp2: '',
+
 };
 
 export const userSlice = createSlice({
@@ -29,8 +35,9 @@ export const userSlice = createSlice({
   initialState,
   reducers: {
     setUserData: (state, action) => {
-      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo, webhook , npremioentregado,ncancelado} = action.payload;
+      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo, webhook , npremioentregado,ncancelado,logo,Rinstagram,Rfacebook,Rtiktok,linkwp1,linkwp2} = action.payload;
       state.uid = uid;
+      state.logo = logo;
       state.PuntosporValor = PuntosporValor;
       state.nombreEmpresa = nombreEmpresa;
       state.nit = nit;
@@ -50,9 +57,16 @@ export const userSlice = createSlice({
       state.password = password; 
       state.npremioentregado=npremioentregado;
       state.ncancelado=ncancelado;
+      state.Rfacebook=Rfacebook;
+      state.Rinstagram=Rinstagram;
+      state.Rtiktok=Rtiktok;
+      state.linkwp1=linkwp1;
+      state.linkwp2=linkwp2;
+
     },
     clearUserData: (state) => {
       state.uid = null;
+      state.logo = null;
       state.PuntosporValor = 0;
       state.password = null;
       state.nombreEmpresa = null;
@@ -72,7 +86,11 @@ export const userSlice = createSlice({
       state.webhook= null;
       state.npremioentregado=null;
       state.ncancelado=null;
-
+      state.Rfacebook=null;
+      state.Rinstagram=null;
+      state.Rtiktok=null;
+      state.linkwp1=null;
+      state.linkwp2=null;
     },
   },
 });

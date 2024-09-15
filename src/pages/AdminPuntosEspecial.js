@@ -132,8 +132,8 @@ function AdminPuntos() {
           const userData = await fetchUserData(userAuth.uid);
 
           setUsuario(userData);
-          console.log(usuario.nombreEmpresa, "ddssss");
-          console.log(userData.idBot, "bot");
+          // console.log(usuario.nombreEmpresa, "ddssss");
+          // console.log(userData.idBot, "bot");
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -187,65 +187,62 @@ function AdminPuntos() {
     setOpenviewPremios(false);
   };
 
-  const fetchSolicitudes = async () => {
-    try {
-      // Consulta para obtener el UID del usuario basado en el identificador
-      const userQuery = query(
-        collection(db, "usuarios"),
-        where("identificador", "==", identificador)
-      );
+ const fetchSolicitudes = async () => {
+  try {
+    const userQuery = query(
+      collection(db, "usuarios"),
+      where("identificador", "==", identificador)
+    );
 
-      const querySnapshot = await getDocs(userQuery);
-      let uidUser = "";
-      querySnapshot.forEach((doc) => {
-        uidUser = doc.id;
-      });
+    const querySnapshot = await getDocs(userQuery);
+    let uidUser = "";
+    querySnapshot.forEach((doc) => {
+      uidUser = doc.id;
+    });
 
-      if (!uidUser) {
-        console.error("Usuario no encontrado");
-        return;
-      }
-
-      // Referencia a la colección de solicitudes del usuario
-      const accionesRef = collection(db, "solicitudes", uidUser, "historial");
-
-      // Consulta para filtrar por estado y tipo
-      const accionesQuery = query(
-        accionesRef,
-        where("estado", "==", "Solicitado"),
-        where("tipo", "==", "especial")
-      );
-
-      const unsubscribe = onSnapshot(accionesQuery, async (snapshot) => {
-        const solicitudes = [];
-
-        // Utiliza un bucle for...of para manejar operaciones asíncronas
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          data.id = doc.id;
-
-          // Llama a fetchContentType para obtener el content-type
-          data.contentType = await fetchContentType(data.recibo);
-
-          solicitudes.push(data);
-        }
-
-        setDataClientesFactura(solicitudes);
-        console.log("data recibos", solicitudes);
-      });
-
-      return () => unsubscribe();
-    } catch (error) {
-      console.error("Error al obtener los datos:", error.message);
+    if (!uidUser) {
+      console.error("Usuario no encontrado");
+      return;
     }
-  };
+
+    const accionesRef = collection(db, "solicitudes", uidUser, "historial");
+
+    const accionesQuery = query(
+      accionesRef,
+      where("estado", "==", "Solicitado"),
+      where("tipo", "==", "especial")
+    );
+
+    const unsubscribe = onSnapshot(accionesQuery, async (snapshot) => {
+      const solicitudesPromises = snapshot.docs.map(async (doc) => {
+        const data = doc.data();
+        data.id = doc.id;
+        
+        // Realiza las operaciones asíncronas en paralelo
+        data.contentType = await fetchContentType(data.recibo);
+
+        return data;
+      });
+
+      // Usa Promise.all para esperar a que todas las promesas se resuelvan en paralelo
+      const solicitudes = await Promise.all(solicitudesPromises);
+
+      setDataClientesFactura(solicitudes);
+    });
+
+    return () => unsubscribe();
+  } catch (error) {
+    console.error("Error al traer las solicitudes", error);
+  }
+};
+
 
   const fetchContentType = async (url) => {
     try {
       const response = await fetch(url);
       const contentType = response.headers.get("content-type");
-      console.log(contentType, "dd");
 
+      
       return contentType;
     } catch (error) {
       console.error(`Error fetching content-type for URL: ${url}`, error);
@@ -282,7 +279,6 @@ function AdminPuntos() {
         });
 
         setDataAcciones(acciones);
-        console.log("acciones", acciones);
       });
 
       return () => unsubscribe();
@@ -402,7 +398,7 @@ function AdminPuntos() {
     setSelectCliente(cliente);
 
     setEditModalOpen(true);
-    console.log(cliente, "cliente");
+    // console.log(cliente, "cliente");
   };
 
   const closeEditModal = () => {
@@ -431,13 +427,13 @@ function AdminPuntos() {
   //aprobar solicitud de puntos
 
   const HandleAprovedCliente = async (cliente, estado, comentario) => {
-    console.log(
-      "Cliente aprobado",
-      cliente,
-      "acción seleccionada",
-      selectedAction
-    );
-    console.log(estado, "estado");
+    // console.log(
+    //   "Cliente aprobado",
+    //   cliente,
+    //   "acción seleccionada",
+    //   selectedAction
+    // );
+    // console.log(estado, "estado");
 
     const clienteAprobado = {
       nombre: cliente.nombre,
@@ -453,23 +449,20 @@ function AdminPuntos() {
       idSolicitud: cliente.idSolicitud,
       puntos: selectedAction,
       accion: selectAccion,
-      flag: estado === "Aceptado" ? "1" : "3",
+      flag: estado === "Aceptado" ? "3" : "4",
       plantilla: estado === "Aceptado" ? naceptado : nrechazado,
       comentario: comentario,
     };
 
     try {
       // Primer fetch para enviar el formData
-      const response1 = await fetch(
-        "https://hook.us1.make.com/39p4vx3px9r7xl4myp3hcmvoonucp39t",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
+      const response1 = await fetch(webhook, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
       if (!response1.ok) {
         throw new Error("Error en el envío del formulario");
@@ -589,7 +582,7 @@ function AdminPuntos() {
         });
       });
 
-      console.log("premios: ", premios);
+      // console.log("premios: ", premios);
       setDataPremios(premios);
 
       return { premios, unsubscribe1, unsubscribe2 };
@@ -627,7 +620,7 @@ function AdminPuntos() {
           id: premioGlobal.id,
           ...premioGlobal.data(),
         };
-        console.log("Premio Global: ", premioGlobalData);
+        // console.log("Premio Global: ", premioGlobalData);
         return premioGlobalData;
       } else {
         console.error("No se encontró un premio global.");
@@ -741,19 +734,19 @@ function AdminPuntos() {
         fetchPremios();
       }
     } catch (error) {
-      console.error("Error registering product:", error);
+      // console.error("Error registering product:", error);
     }
   };
 
   //editarPremios
   const openModalEditPremios = (premio) => {
     setselectPremioEdit(premio);
-    console.log(premio.tipo);
+    // console.log(premio.tipo);
     setNombrePremio(premio.nombre);
     setCantidadPuntos(premio.costoPuntos);
     setDescripcionPremio(premio.descripcion);
     setPremioEdit(true);
-    console.log("Editing prize:", premio); // Log to verify prize data
+    // console.log("Editing prize:", premio); // Log to verify prize data
   };
 
   const ClosedModalEditPremios = () => {
@@ -879,26 +872,14 @@ function AdminPuntos() {
       console.error("Error actualizando el premio global:", error);
     }
   };
-  const openModalEditAcciones = (accion) => {
-    setSelectAccion(accion);
-    setnombreAccion(accion.nombre);
-    setpuntosAccion(accion.puntos);
-    setDescripcionAccion(accion.descripcion);
-    setAccionEdit(true);
-    console.log("Editing accion:", accion); // Log to verify prize data
-  };
 
-  const ClosedModalEditAcciones = () => {
-    setAccionEdit(false);
-    setSelectAccion(null);
-  };
 
   //funcion editar accion
   const handleEditaAccion = async (e) => {
     e.preventDefault();
   
     if (!selectAccion) {
-      console.error("No product to edit");
+      console.error("No action to edit");
       return;
     }
   
@@ -922,26 +903,40 @@ function AdminPuntos() {
       );
   
       if (!response.ok) {
-        setAlertMessage("Error al eliminar el producto. Inténtalo nuevamente.");
+        setAlertMessage("Error al actualizar la acción. Inténtalo nuevamente.");
         setShowErrorAlert(true);
-      } else {
-        setAlertMessage("Accion eliminada con éxito");
+      }
+        setAlertMessage("Acción actualizada con éxito");
         setShowAlert(true);
         fetchAccciones();
-        // Cerrar el modal solo si la actualización fue exitosa
-        ClosedModalEditAcciones();
-      }
+      
     } catch (error) {
-      console.error("Error updating action:", error);
-    }
+    
+    } 
+  };
+  const openModalEditAcciones = (accion) => {
+    setAccionEdit(true);
+    setSelectAccion(accion);
+    setnombreAccion(accion.nombre);
+    setpuntosAccion(accion.puntos);
+    setDescripcionAccion(accion.descripcion);
+    // console.log("Editing accion:", accion); // Log to verify prize data
+  };
+
+  const ClosedModalEditAcciones = () => {
+    setAccionEdit(false);
+    setSelectAccion(null);
+  
   };
   
+  
+
   //modal para eliminar acciones
 
   const OpenDeleteAccionModal = (accion) => {
     setSelectDeleteAccion(accion);
     setOpenModalDeleteAccion(true);
-    console.log(accion, "accionDelete");
+    // console.log(accion, "accionDelete");
   };
 
   const ClosedDeleteAccionModal = () => {
@@ -979,7 +974,7 @@ function AdminPuntos() {
   const openModalPremio = (premio) => {
     setSelectPremioDelete(premio);
     setModalDeletePremio(true);
-    console.log("premiodelete", premio);
+    // console.log("premiodelete", premio);
   };
   const ClosedModalPremio = () => {
     setSelectPremioDelete(null);
@@ -988,7 +983,7 @@ function AdminPuntos() {
   const handleDeletePremio = async () => {
     if (!selectPremioDelete) return;
 
-    console.log("selececrte", selectPremioDelete);
+    // console.log("selececrte", selectPremioDelete);
 
     if (selectPremioDelete.tipo != "global") {
       try {
@@ -1190,6 +1185,7 @@ function AdminPuntos() {
                                 onClose={ClosedModalEditAcciones}
                                 size="auto"
                                 Fondo="auto"
+
                               >
                                 <form
                                   className="space-y-4 my-10 "
@@ -1274,6 +1270,7 @@ function AdminPuntos() {
                                 isOpen={openModalDeleteAccion}
                                 onClose={ClosedDeleteAccionModal}
                                 size="auto"
+                                Fondo="auto"
                               >
                                 {SelectDeleteAccion && (
                                   <div className="mt-4">
