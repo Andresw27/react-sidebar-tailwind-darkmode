@@ -427,21 +427,12 @@ function AdminPuntos() {
   //aprobar solicitud de puntos
 
   const HandleAprovedCliente = async (cliente, estado, comentario) => {
-    // console.log(
-    //   "Cliente aprobado",
-    //   cliente,
-    //   "acción seleccionada",
-    //   selectedAction
-    // );
-    // console.log(estado, "estado");
-    closeEditModal();
     const clienteAprobado = {
       nombre: cliente.nombre,
       puntos: selectedAction,
       estado: estado,
     };
-
-    // Definimos formData directamente aquí, en lugar de usar setFormData
+  
     const formData = {
       idBot: idBot,
       nombre: cliente.nombre,
@@ -453,52 +444,47 @@ function AdminPuntos() {
       plantilla: estado === "Aceptado" ? naceptado : nrechazado,
       comentario: comentario,
     };
-
+  
     try {
-      // Primer fetch para enviar el formData
-      const response1 = await fetch(webhook, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response1.ok) {
-        throw new Error("Error en el envío del formulario");
-      } else {
-        console.log("solicitud bien", formData);
-      }
-
-      // Segundo fetch para actualizar la solicitud
-      const response2 = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${identificador}/${cliente.id}/${cliente.numerowp}`,
-        {
-          method: "PUT",
+      closeEditModal(); // Cerramos el modal de inmediato
+  
+      const [response1, response2] = await Promise.all([
+        fetch(webhook, {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(clienteAprobado),
-        }
-      );
-
+          body: JSON.stringify(formData),
+        }),
+        fetch(
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${identificador}/${cliente.id}/${cliente.numerowp}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(clienteAprobado),
+          }
+        )
+      ]);
+  
+      if (!response1.ok) {
+        throw new Error("Error en el envío del formulario");
+      }
+  
       if (!response2.ok) {
         throw new Error("Error al actualizar la solicitud");
       }
-
-      closeEditModal();
+  
       setAlertMessage("Cliente aprobado correctamente");
       setShowAlert(true);
     } catch (error) {
       console.error("Error approving client points:", error);
       setAlertMessage("Error en el proceso de aprobación.");
       setShowAlert(true);
-    } finally {
-      // Siempre cierra el modal, ya sea que la operación haya sido exitosa o haya fallado
-      closeEditModal();
     }
   };
-
+  
   const filterDataCliente = dataClientesFactura.filter(
     (cliente) =>
       (cliente.id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
