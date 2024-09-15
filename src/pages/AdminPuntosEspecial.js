@@ -434,7 +434,7 @@ function AdminPuntos() {
     //   selectedAction
     // );
     // console.log(estado, "estado");
-
+    closeEditModal();
     const clienteAprobado = {
       nombre: cliente.nombre,
       puntos: selectedAction,
