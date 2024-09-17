@@ -606,9 +606,16 @@ function Productos() {
                         <option value="" hidden>
                           Selecciona un menú
                         </option>
-                        {DataMenus.map((menu) => (
-                          <option value={menu.IdMenu}>{menu.nombre}</option>
-                        ))}
+                        {DataMenus.length > 0 ? (
+                           DataMenus.map((menu) => (
+                            <option value={menu.IdMenu}>{menu.nombre}</option>
+                          ))
+                        ) : (
+                          <option value="" disabled>
+                          No hay menús configurados
+                        </option>
+                        )}
+                       
                       </select>
                     </div>
                     <div className="md:w-full px-3 mb-6 md:mb-0">

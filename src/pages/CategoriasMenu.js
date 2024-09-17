@@ -3,8 +3,9 @@ import Layout from "../components/Layout";
 import Modal from "../components/Modal";
 import { IoSearch } from "react-icons/io5";
 import { IoFastFoodSharp } from "react-icons/io5";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase Storage
+import { getStorage, ref, uploadBytes, getDownloadURL,deleteObject } from "firebase/storage"; // Firebase Storage
 import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
+import Alert from "../components/Alert"; // Importa el componente de alerta
 
 import { Tooltip } from "@material-tailwind/react";
 import { useSelector } from "react-redux";
@@ -25,6 +26,8 @@ import {
 } from "firebase/firestore";
 
 function CategoriasMenu() {
+  const [showAlert, setShowAlert] = useState(false); // Estado para mostrar la alerta
+  const [alertMessage, setAlertMessage] = useState("");
   const { identificador, nombreEmpresa } = useSelector((state) => state.user);
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [OpenModalNewMenu, setOpenModalNewMenu] = useState("");
@@ -48,7 +51,9 @@ function CategoriasMenu() {
   const [deletemenu, setdeletemenu] = useState(null);
   const [editcategoriamenu, seteditcategoriamenu] = useState("");
   const [previewUrl, setPreviewUrl] = useState(null);
- const [selectcategoriamenu,setselectcategoriamenu] = useState(null);
+  const [selectcategoriamenu, setselectcategoriamenu] = useState(null);
+  const [deletecategoriamenu,setdeletecategoriamenu] = useState("");
+  const [selectcategoriamenudele, setselectcategoriamenudele] = useState(null);
   //modales new categoria de menu
   const handleopenmodalnewcategoriamenu = () => {
     setOpenNewCategoria(true);
@@ -171,7 +176,8 @@ function CategoriasMenu() {
       handleclosedmodalnewmenu();
       setdescripcionMenunew("");
       setnombreMenunew("");
-
+      setAlertMessage("Menú Agregado con éxito");
+      setShowAlert(true);
       console.log("Menu añadido exitosamente a Firestore.");
     } catch (error) {
       console.error("Error al añadir el menú: ", error);
@@ -354,6 +360,8 @@ function CategoriasMenu() {
       setdescripcionCategoria("");
       setnombreCategoria("");
       setfotoCategoria("");
+      setAlertMessage("Categoria Agregada éxitosamente");
+      setShowAlert(true);
       console.log("Categoría añadida exitosamente a Firestore.");
     } catch (error) {
       console.error("Error al añadir la categoría o subir la imagen:", error);
@@ -508,6 +516,8 @@ function CategoriasMenu() {
       // Actualizar la publicidad en Firestore
       await updateDoc(publicidadRef, updatedPublicidad);
       handleClosededitmodal();
+      setAlertMessage("Menú Actualizado con éxito");
+      setShowAlert(true);
       console.log("Publicidad editada exitosamente en Firestore.");
       fetchMenus();
     } catch (error) {
@@ -576,7 +586,8 @@ function CategoriasMenu() {
 
       // Limpiar el formulario y cerrar el modal
       HandleclosedModaldeletemenu();
-
+      setAlertMessage("Menú Eliminado con éxito");
+      setShowAlert(true);
       // Actualizar los menús
       fetchMenus();
     } catch (error) {
@@ -591,12 +602,13 @@ function CategoriasMenu() {
     setselectcategoriamenu({
       IdMenu: categoria.IdMenu, // Asegúrate de que este campo existe en el objeto 'categoria'
       id: categoria.id,
-    });    setdescripcionCategoria(categoria.descripcion)
-    setnombreCategoria(categoria.nombre)
-    setfotoCategoria(categoria.foto)
+    });
+    setdescripcionCategoria(categoria.descripcion);
+    setnombreCategoria(categoria.nombre);
+    setfotoCategoria(categoria.foto);
     setPreviewUrl(categoria.foto);
-    console.log(categoria,"categoria");
-    console.log(selectcategoriamenu)
+    console.log(categoria, "categoria");
+    console.log(selectcategoriamenu);
   };
   const handleClosededitCategoriamenu = () => {
     seteditcategoriamenu(false);
@@ -629,12 +641,12 @@ function CategoriasMenu() {
         "categoriaMenu",
         uidUser,
         "Menus",
-        selectcategoriamenu.IdMenu, 
+        selectcategoriamenu.IdMenu,
         "categorias",
         selectcategoriamenu.id
       );
 
-      let logoURL = selectcategoriamenu.foto; 
+      let logoURL = selectcategoriamenu.foto;
       if (fotoCategoria) {
         const storage = getStorage();
         const storageRef = ref(
@@ -652,25 +664,99 @@ function CategoriasMenu() {
       // Crear el objeto con los nuevos datos de la publicidad
       const updatedPublicidad = {
         nombre: nombreCategoria || selectcategoriamenu.nombre,
-        foto: logoURL, 
-        descripcion: descripcionCategoria || selectcategoriamenu.descripcion, 
+        foto: logoURL,
+        descripcion: descripcionCategoria || selectcategoriamenu.descripcion,
       };
 
       // Actualizar la publicidad en Firestore
       await updateDoc(publicidadRef, updatedPublicidad);
 
-    
       console.log("Publicidad editada exitosamente en Firestore.");
-      handleClosededitCategoriamenu()
-      
       fetchCategoriaMenu();
+      handleClosededitCategoriamenu();
+      setAlertMessage("Categoria Actualizada con éxito");
+      setShowAlert(true);
+      setopenDropdownmenu(false);
     } catch (error) {
       console.error("Error al editar la publicidad:", error);
     }
   };
+  //Modal para eliminar categoria de un menu
+  const HandleOpenDeleteCategoriaMenu = (categoria) => {
+    setdeletecategoriamenu(true);
+    setselectcategoriamenudele(categoria);
+    console.log(categoria,"categoria");
+  };
+  const HandleClosedDeleteCategoriaMenu = () => {
+    setdeletecategoriamenu(false);
+    setopenDropdownmenuCategorias(false);
 
+
+  };
+
+  //funcion eliminar categoria de un Menú
+  const handleDeleteCategoriaMenu = async (selectcategoriamenudele) => {
+  
+    try {
+      // Obtener el UID del usuario basado en el identificador
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+  
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+  
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+  
+      const publicidadRef = doc(
+        db,
+        "categoriaMenu",
+        uidUser,
+        "Menus",
+        selectcategoriamenudele.IdMenu,
+        "categorias",
+        selectcategoriamenudele.id
+      );
+  
+      // // Eliminar la imagen de Firebase Storage, si existe
+      // if (selectcategoriamenudele.foto) {
+      //   const storage = getStorage();
+      //   const storageRef = ref(
+      //     storage,
+      //     `ImgProductosmenu/${nombreEmpresa}/${selectcategoriamenudele.foto}`
+      //   );
+  
+      //   await deleteObject(storageRef); // Eliminar la imagen de Firebase Storage
+      //   console.log("Imagen eliminada de Firebase Storage.");
+      // }
+  
+      // Eliminar la categoría de Firestore
+      await deleteDoc(publicidadRef);
+      console.log("Categoría eliminada exitosamente de Firestore.");
+  
+      // Actualizar la lista de categorías después de eliminar
+      fetchCategoriaMenu();
+      HandleClosedDeleteCategoriaMenu();
+      setAlertMessage("Categoria Eliminada con éxito");
+      setShowAlert(true);
+      setopenDropdownmenu(false);
+    } catch (error) {
+      console.error("Error al eliminar la categoría:", error);
+    }
+  };
+  
   return (
     <Layout>
+        {showAlert && (
+        <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
+      )}
       <div className="my-3 mx-10 flex justify-between">
         <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
           Configurar Menús
@@ -958,9 +1044,10 @@ function CategoriasMenu() {
                   return (
                     <div
                       key={index}
-                      onClick={(e) =>{   e.stopPropagation();
+                      onClick={(e) => {
+                        e.stopPropagation();
 
-                        handleopenmodalviewproductoscategorias(categoria)
+                        handleopenmodalviewproductoscategorias(categoria);
                       }}
                       className="relative p-4 cursor-pointer bg-slate-50 shadow-lg rounded-xl"
                     >
@@ -1020,10 +1107,15 @@ function CategoriasMenu() {
                                   onClose={handleClosededitCategoriamenu}
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <div className="grid grid-cols-1 md:grid-cols-3 mx-4 gap-6 mt-10"
-                                   onClick={(e) => e.stopPropagation()} >
+                                  <div
+                                    className="grid grid-cols-1 md:grid-cols-3 mx-4 gap-6 mt-10"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     <div className="border shadow-xs dark:bg-slate-600 flex flex-col w-full justify-center md:w-auto mb-12 h-auto px-6 py-2 rounded-2xl md:col-span-1">
-                                      <form className="space-y-4" onSubmit={handleEditCategoriaMenu}>
+                                      <form
+                                        className="space-y-4"
+                                        onSubmit={handleEditCategoriaMenu}
+                                      >
                                         <div>
                                           <label
                                             htmlFor="text"
@@ -1105,13 +1197,49 @@ function CategoriasMenu() {
                                 <a
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    // handleDeleteMenu(categoria);
+                                    HandleOpenDeleteCategoriaMenu(categoria);
                                   }}
                                   className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
                                 >
                                   <FaRegTrashAlt /> Eliminar Categoria
                                 </a>
                               </li>
+                                <Modal
+                                isOpen={deletecategoriamenu}
+                                nombre="Eliminar Categoria"
+                                onClose={HandleClosedDeleteCategoriaMenu}
+                                size="auto"
+                                Fondo="auto"
+                              >
+                                {selectcategoriamenudele && (
+                                  <div className="mt-4">
+                                    <p>
+                                      ¿Estás seguro de que deseas eliminar la categoria {" "}
+                                      <span className="font-semibold">
+                                        {selectcategoriamenudele.nombre}
+                                      </span>{" "}
+                                      <span className="font-semibold"></span>?
+                                    </p>
+
+                                    <div className="flex justify-end gap-2 mt-4">
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteCategoriaMenu(selectcategoriamenudele)
+                                        }
+                                        className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                                      >
+                                        Eliminar
+                                      </button>
+                                      <button
+                                        onClick={HandleClosedDeleteCategoriaMenu}
+                                        className="text-white bg-gray-500 hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-gray-400 dark:hover:bg-gray-500 dark:focus:ring-gray-600"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </Modal>
                             </ul>
                           </div>
                         )}

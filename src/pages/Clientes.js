@@ -11,6 +11,8 @@ import {
   onSnapshot,
   getDocs,
   orderBy,
+  doc,
+  updateDoc
 } from "firebase/firestore";
 import Modal from "../components/Modal";
 function Clientes() {
@@ -71,6 +73,23 @@ function Clientes() {
     openModalDetallesSolicitudRedencion,
     setopenModalDetallesSolicitudRedencion,
   ] = useState("");
+
+  const [nombreCliente,setnombreCliente]= useState("");
+  const [selecteditarcliente,setselecteditarcliente] =useState(null)
+  const [editarcliente,seteditarcliente]= useState("");
+
+  //funcion abrir modal editar cliente
+
+  const handleopeneditcliente = (cliente)=>{
+    seteditarcliente(true)
+    setselecteditarcliente(cliente)
+    setnombreCliente(cliente.nombre)
+    console.log(cliente)
+  }
+  const handleclosededitcliente = ()=>{
+    seteditarcliente(false)
+  }
+
 
   //funcion para abrir modal de historial de redenciones
 
@@ -483,6 +502,50 @@ function Clientes() {
     indexOfLastHistorialRedencion
   );
 
+  const handleEditCliente = async (e) => {
+    e.preventDefault(); // Evitar el comportamiento por defecto del formulario
+
+    try {
+      // Obtener el UID del usuario basado en el identificador
+      const userQuery = query(
+        collection(db, "usuarios"),
+        where("identificador", "==", identificador)
+      );
+
+      const querySnapshot = await getDocs(userQuery);
+      let uidUser = "";
+      querySnapshot.forEach((doc) => {
+        uidUser = doc.id;
+      });
+
+      if (!uidUser) {
+        console.error("Usuario no encontrado");
+        return;
+      }
+
+      // Referencia al documento de la publicidad a editar
+      const publicidadRef = doc(
+        db,
+        "usuarios",
+        uidUser,
+        "clientes",
+        selecteditarcliente.id
+      );
+
+      const updatedPublicidad = {
+        nombre: nombreCliente || selecteditarcliente.nombre,
+      };
+
+      // Actualizar la publicidad en Firestore
+      await updateDoc(publicidadRef, updatedPublicidad);
+      handleclosededitcliente();
+     
+      console.log("Publicidad editada exitosamente en Firestore.");
+    } catch (error) {
+      console.error("Error al editar la publicidad:", error);
+    }
+  };
+
   return (
     <Layout>
       <div className="my-3 mx-10 flex justify-start gap-4">
@@ -601,6 +664,52 @@ function Clientes() {
                           className="py-2 text-sm text-gray-700 dark:text-gray-200"
                           aria-labelledby="dropdownMenuIconButton"
                         >
+                          <li>
+                            <a
+                              onClick={() =>
+                                handleopeneditcliente(cliente)
+                              }
+                              className="block px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                            >
+                              Editar Cliente
+                            </a>
+                          </li>
+                          <Modal
+                          isOpen={editarcliente}
+                          onClose={handleclosededitcliente}
+                          nombre="Editar Cliente"
+                          size="auto"
+                          >  <form
+                  className="space-y-6 my-5 px-2"
+                  onSubmit={handleEditCliente}
+                >
+                  <div>
+                    <label
+                      htmlFor="nombreAccion"
+                      className="block text-sm font-semibold text-gray-800 dark:text-white mb-2"
+                    >
+                      Nombre Cliente
+                    </label>
+                    <input
+                      type="text"
+                      onChange={(e) => setnombreCliente(e.target.value)}
+                      value={nombreCliente}
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800 dark:text-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                      
+                      
+                    />
+                  </div>
+
+                
+
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+                  >
+                    Editar Cliente
+                  </button>
+                </form>
+                          </Modal>
                           <li>
                             <a
                               onClick={() =>

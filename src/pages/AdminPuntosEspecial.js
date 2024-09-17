@@ -4,6 +4,9 @@ import { IoSearch, IoClose, IoSettingsSharp } from "react-icons/io5";
 import { Tooltip } from "@material-tailwind/react";
 import { FaCoins, FaBookOpen } from "react-icons/fa";
 import { MdCancel } from "react-icons/md";
+import { BsEnvelopeFill  } from "react-icons/bs";
+// import { BsEnvelopeXFill } from "react-icons/bs";
+import {  IoFilter } from "react-icons/io5";
 
 import { auth } from "../firebase-config";
 import { FaCrown } from "react-icons/fa";
@@ -24,6 +27,7 @@ import {
   getDoc,
   onSnapshot,
   doc,
+  orderBy
 } from "firebase/firestore";
 import { db } from "../firebase-config";
 import { useSelector } from "react-redux";
@@ -107,6 +111,11 @@ function AdminPuntos() {
   const [openModalPremioGlobal, setopenModalPremioGlobal] = useState("");
   //Estado Premio GLobal
   const [PremioGlobal, setPremioGlobal] = useState("");
+  const [selectedFilters, setSelectedFilters] = useState({
+    estado: null,
+  });
+  const [openFilter, setOpenFilter] = useState(false);
+
   // console.log("accione seleccionada2 ",selectedAction)
 
   //opcion para limpiar select
@@ -124,6 +133,35 @@ function AdminPuntos() {
     setSelectAccion("");
   };
 
+
+
+   //obtener total solicitudes aceptadas
+   const Solicitudesaceptadastotal = dataClientesFactura.filter((solicitud)=> 
+  
+  solicitud.estado === "Aceptado"
+  
+  ).length;
+  
+   //obtener total solicitudes aceptadas
+   const Solicitudesrechazadastotal = dataClientesFactura.filter((solicitud)=> 
+  
+    solicitud.estado === "Rechazado"
+    
+    ).length;
+     
+    
+   //obtener total solicitudes aceptadas
+   const Solicitudessolicitadastotal = dataClientesFactura.filter((solicitud)=> 
+  
+    solicitud.estado === "Solicitado"
+    
+    ).length;
+
+    const totalSolicitudes = dataClientesFactura.reduce(
+      (total, solicitud) => total + 1,
+      0
+    );
+     
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -187,7 +225,7 @@ function AdminPuntos() {
     setOpenviewPremios(false);
   };
 
- const fetchSolicitudes = async () => {
+  const fetchSolicitudes = async () => {
   try {
     const userQuery = query(
       collection(db, "usuarios"),
@@ -209,27 +247,31 @@ function AdminPuntos() {
 
     const accionesQuery = query(
       accionesRef,
-      where("estado", "==", "Solicitado"),
-      where("tipo", "==", "especial")
+      where("tipo", "==", "especial"), // Filtrar por tipo
+      orderBy("createAt", "desc") 
     );
 
+    // Escucha los cambios con 'onSnapshot'
     const unsubscribe = onSnapshot(accionesQuery, async (snapshot) => {
       const solicitudesPromises = snapshot.docs.map(async (doc) => {
         const data = doc.data();
         data.id = doc.id;
-        
-        // Realiza las operaciones asíncronas en paralelo
+
+        // Obtener el 'contentType' de manera asíncrona
         data.contentType = await fetchContentType(data.recibo);
 
         return data;
       });
 
-      // Usa Promise.all para esperar a que todas las promesas se resuelvan en paralelo
+      // Resuelve todas las promesas de manera paralela
       const solicitudes = await Promise.all(solicitudesPromises);
 
+      // Actualiza el estado con las solicitudes
       setDataClientesFactura(solicitudes);
+      console.log(solicitudes, "solicitudes");
     });
 
+    // Devuelve la función para cancelar la suscripción
     return () => unsubscribe();
   } catch (error) {
     console.error("Error al traer las solicitudes", error);
@@ -242,7 +284,6 @@ function AdminPuntos() {
       const response = await fetch(url);
       const contentType = response.headers.get("content-type");
 
-      
       return contentType;
     } catch (error) {
       console.error(`Error fetching content-type for URL: ${url}`, error);
@@ -427,21 +468,12 @@ function AdminPuntos() {
   //aprobar solicitud de puntos
 
   const HandleAprovedCliente = async (cliente, estado, comentario) => {
-    // console.log(
-    //   "Cliente aprobado",
-    //   cliente,
-    //   "acción seleccionada",
-    //   selectedAction
-    // );
-    // console.log(estado, "estado");
-
     const clienteAprobado = {
       nombre: cliente.nombre,
       puntos: selectedAction,
       estado: estado,
     };
-
-    // Definimos formData directamente aquí, en lugar de usar setFormData
+  
     const formData = {
       idBot: idBot,
       nombre: cliente.nombre,
@@ -453,59 +485,71 @@ function AdminPuntos() {
       plantilla: estado === "Aceptado" ? naceptado : nrechazado,
       comentario: comentario,
     };
-
+  
     try {
-      // Primer fetch para enviar el formData
-      const response1 = await fetch(webhook, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response1.ok) {
-        throw new Error("Error en el envío del formulario");
-      } else {
-        console.log("solicitud bien", formData);
-      }
-
-      // Segundo fetch para actualizar la solicitud
-      const response2 = await fetch(
-        `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${identificador}/${cliente.id}/${cliente.numerowp}`,
-        {
-          method: "PUT",
+      closeEditModal(); // Cerramos el modal de inmediato
+  
+      const [response1, response2] = await Promise.all([
+        fetch(webhook, {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(clienteAprobado),
-        }
-      );
-
+          body: JSON.stringify(formData),
+        }),
+        fetch(
+          `https://us-central1-jeicydelivery.cloudfunctions.net/app/solicitud/actualizar/${identificador}/${cliente.id}/${cliente.numerowp}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(clienteAprobado),
+          }
+        )
+      ]);
+  
+      if (!response1.ok) {
+        throw new Error("Error en el envío del formulario");
+      }
+  
       if (!response2.ok) {
         throw new Error("Error al actualizar la solicitud");
       }
-
-      closeEditModal();
+  
       setAlertMessage("Cliente aprobado correctamente");
       setShowAlert(true);
     } catch (error) {
       console.error("Error approving client points:", error);
       setAlertMessage("Error en el proceso de aprobación.");
       setShowAlert(true);
-    } finally {
-      // Siempre cierra el modal, ya sea que la operación haya sido exitosa o haya fallado
-      closeEditModal();
     }
   };
+  const handleClearAndCloseFilters = () => {
+    setSelectedFilters({ estado: null });
+    setOpenFilter(false);
+  };
+
 
   const filterDataCliente = dataClientesFactura.filter(
-    (cliente) =>
-      (cliente.id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-      (cliente.numerowp?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-        false) ||
-      (cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-        false)
+    (cliente) => {
+      const estadoFilter = selectedFilters.estado
+      ? cliente.estado === selectedFilters.estado
+      : true;
+
+
+      return( 
+        estadoFilter &&
+      (
+        (cliente.id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        (cliente.numerowp?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          false) ||
+        (cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          false)
+
+      ) )
+    }
+    
   );
 
   const indexOfLastProduct = currentPage * rowsPerPage;
@@ -519,10 +563,17 @@ function AdminPuntos() {
     Array.isArray(DataPremios) ? DataPremios : []
   ).filter((premio) => {
     const searchTerm = searchTermPremio.toLowerCase();
+    
+
     return (
-      (premio.nombre?.toLowerCase().includes(searchTerm) ?? false) ||
-      (premio.descripcion?.toLowerCase().includes(searchTerm) ?? false) ||
-      (premio.costoPuntos?.toString().includes(searchTerm) ?? false)
+      
+
+        (premio.nombre?.toLowerCase().includes(searchTerm) ?? false) ||
+        (premio.descripcion?.toLowerCase().includes(searchTerm) ?? false) ||
+        (premio.costoPuntos?.toString().includes(searchTerm) ?? false)
+
+      
+    
     );
   });
 
@@ -873,23 +924,22 @@ function AdminPuntos() {
     }
   };
 
-
   //funcion editar accion
   const handleEditaAccion = async (e) => {
     e.preventDefault();
-  
+
     if (!selectAccion) {
       console.error("No action to edit");
       return;
     }
-  
+
     const updatedProduct = {
       ...selectAccion,
       nombre: nombreAccion,
       descripcion: descripcionAccion,
       puntos: puntosAccion,
     };
-  
+
     try {
       const response = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/actions/update/${identificador}/${selectAccion.id}`,
@@ -901,18 +951,15 @@ function AdminPuntos() {
           body: JSON.stringify(updatedProduct),
         }
       );
-  
+
       if (!response.ok) {
         setAlertMessage("Error al actualizar la acción. Inténtalo nuevamente.");
         setShowErrorAlert(true);
       }
-        setAlertMessage("Acción actualizada con éxito");
-        setShowAlert(true);
-        fetchAccciones();
-      
-    } catch (error) {
-    
-    } 
+      setAlertMessage("Acción actualizada con éxito");
+      setShowAlert(true);
+      fetchAccciones();
+    } catch (error) {}
   };
   const openModalEditAcciones = (accion) => {
     setAccionEdit(true);
@@ -926,10 +973,7 @@ function AdminPuntos() {
   const ClosedModalEditAcciones = () => {
     setAccionEdit(false);
     setSelectAccion(null);
-  
   };
-  
-  
 
   //modal para eliminar acciones
 
@@ -1029,6 +1073,19 @@ function AdminPuntos() {
     }
   };
 
+
+
+  const handleFilterChange = (filterKey, value) => {
+    setSelectedFilters((prevFilters) => ({
+      ...prevFilters,
+      [filterKey]: prevFilters[filterKey] === value ? null : value,
+    }));
+  };
+
+
+  const isFilterActive = (filterKey, value) => {
+    return selectedFilters[filterKey] === value;
+  };
   return (
     <Layout>
       {showAlert && (
@@ -1048,6 +1105,72 @@ function AdminPuntos() {
         </p>
       </div>
 
+      <div className="md:px-2 grid grid-cols-1 md:grid-cols-1 gap-4 ">
+          <div className="col-span-4 grid grid-cols-4 gap-3 mb-4">
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md  bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 ">
+                <BsEnvelopeFill className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {totalSolicitudes > 0 ? totalSolicitudes : "0"}
+                </p>
+                <p className="text-1xl font-semibold text-gray-500 whitespace-nowrap">
+                  Total Solicitudes
+                </p>
+              </div>
+            </div>
+
+            {/* Pedidos Aceptados */}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-50 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 ">
+                <BsEnvelopeFill  className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {Solicitudessolicitadastotal > 0 ? Solicitudessolicitadastotal : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                  Solicitudes Solicitadas
+                </p>
+              </div>
+            </div>
+
+            {/* Pedidos Distribución */}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-green-100 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16 rounded-full ">
+                <BsEnvelopeFill className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {Solicitudesaceptadastotal > 0
+                    ? Solicitudesaceptadastotal
+                    : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                Solicitudes Aceptadas
+                </p>
+              </div>
+            </div>
+
+            {/* Total Entregados */}
+            <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-300 bg-opacity-80 backdrop-blur-sm shadow-md">
+              <div className="flex justify-center items-center w-16 h-16  ">
+                <BsEnvelopeFill className="text-3xl" />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <p className="text-4xl font-bold whitespace-nowrap">
+                  {Solicitudesrechazadastotal > 0 ? Solicitudesrechazadastotal : "0"}
+                </p>
+                <p className="text-1xl text-gray-500 whitespace-nowrap">
+                Solicitudes Rechazadas
+                </p>
+              </div>
+            </div>
+
+          
+          </div>
+        </div>
       <div className="col-span-2 relative overflow-x-auto shadow-md mx-4 sm:rounded-lg">
         <div className="flex justify-between items-center p-4">
           <div className="flex gap-4">
@@ -1080,6 +1203,60 @@ function AdminPuntos() {
                 </div>
               </div>
             )}
+
+
+<div>
+              <Tooltip content="Filtrar por estado">
+                <div
+                  onClick={() => setOpenFilter(!openFilter)}
+                  className="bg-slate-50 cursor-pointer p-2 text-2xl rounded-full"
+                >
+                  <IoFilter />
+                </div>
+              </Tooltip>
+            </div>
+            {openFilter && (
+              <div className="flex justify-start gap-4 ">
+                <button
+                  className={`p-2 rounded-full ${
+                    isFilterActive("estado", "Solicitado")
+                      ? "bg-red-100 text-black font-semibold"
+                      : "bg-gray-50"
+                  }`}
+                  onClick={() => handleFilterChange("estado", "Solicitado")}
+                >
+                  Solicitado
+                </button>
+                <button
+                  className={`p-2 rounded-full ${
+                    isFilterActive("estado", "Aceptado")
+                      ? "bg-green-400 text-black font-semibold"
+                      : "bg-gray-50"
+                  }`}
+                  onClick={() => handleFilterChange("estado", "Aceptado")}
+                >
+                  Aceptado
+                </button>
+                <button
+                  className={`p-2 rounded-full ${
+                    isFilterActive("estado", "Rechazado")
+                      ? "bg-red-400 text-black font-semibold"
+                      : "bg-gray-50"
+                  }`}
+                  onClick={() => handleFilterChange("estado", "Rechazado")}
+                >
+                  Rechazado
+                </button>
+                <button
+                  onClick={handleClearAndCloseFilters}
+                  className="font-bold"
+                >
+                  Limpiar y cerrar filtros
+                </button>
+              </div>
+            )}
+
+
           </div>
           <div>
             <div className="flex gap-4">
@@ -1185,7 +1362,6 @@ function AdminPuntos() {
                                 onClose={ClosedModalEditAcciones}
                                 size="auto"
                                 Fondo="auto"
-
                               >
                                 <form
                                   className="space-y-4 my-10 "
@@ -1978,9 +2154,23 @@ function AdminPuntos() {
                   {cliente.descripcion}
                 </td> */}
                 <td className=" py-4 font-semibold text-gray-900 dark:text-white">
-                  <p className="bg-red-100 text-red-800 text-base font-medium text-center  rounded dark:bg-red-900 dark:text-red-300">
-                    {cliente.estado}
-                  </p>
+                  {cliente.estado === "Aceptado" ? (
+                    <p className="bg-green-600 text-white text-base font-medium text-center  rounded dark:bg-red-900 dark:text-red-300">
+                      {cliente.estado}
+                    </p>
+                  ) : cliente.estado === "Solicitado" ? (
+                    <p className="bg-red-100 text-red-800 text-base font-medium text-center  rounded dark:bg-red-900 dark:text-red-300">
+                      {cliente.estado}
+                    </p>
+                  ) : cliente.estado === "Rechazado" ? (
+                    <p className="bg-red-800 text-white text-base font-medium text-center  rounded dark:bg-red-900 dark:text-red-300">
+                      {cliente.estado}
+                    </p>
+                  ) : (
+                    (<p className="bg-red-800 text-white text-base font-medium text-center  rounded dark:bg-red-900 dark:text-red-300">
+                      {cliente.estado}
+                    </p>)
+                  )}
                 </td>
                 {/* <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                   {cliente.descripcion}
@@ -1993,11 +2183,18 @@ function AdminPuntos() {
                 </td>
                 <td className="px-6 py-4 text-xs font-semibold text-gray-900 dark:text-white">
                   <button
-                    className="bg-blue-800 text-white p-2 rounded"
+                    className={`text-white font-medium rounded-lg text-sm p-2 text-center inline-flex items-center 
+                      ${
+                        cliente.estado === "Solicitado"
+                          ? "bg-green-700 hover:bg-green-500 focus:ring-4 focus:outline-none focus:ring-green-300 dark:focus:ring-green-900"
+                          : "bg-gray-400 cursor-not-allowed"
+                      }`}
+                    disabled={cliente.estado !== "Solicitado"}
                     onClick={() => openEditModal(cliente)}
                   >
-                    Validar puntos
-                  </button>
+                     {cliente.estado === "Solicitado"
+                          ? "Validar"
+                          : "Validado"}                  </button>
                 </td>
               </tr>
             ))}

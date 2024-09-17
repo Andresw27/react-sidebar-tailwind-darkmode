@@ -13,7 +13,7 @@ import {
   where,
   getDocs,
   onSnapshot,
-  orderBy
+  orderBy,
 } from "firebase/firestore";
 
 function RedimirPuntos() {
@@ -24,7 +24,9 @@ function RedimirPuntos() {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
-  const { identificador , npremioentregado,webhook,idBot} = useSelector((state) => state.user);
+  const { identificador, npremioentregado, webhook, idBot } = useSelector(
+    (state) => state.user
+  );
   const [openFilter, setOpenFilter] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
     estado: null,
@@ -60,22 +62,19 @@ function RedimirPuntos() {
     const estadoFilter = selectedFilters.estado
       ? punto.estado === selectedFilters.estado
       : true;
-  
+
     return (
       estadoFilter &&
-      (
-        punto.estado?.toLowerCase().includes(searchLower) ||
+      (punto.estado?.toLowerCase().includes(searchLower) ||
         punto.premioId?.toLowerCase().includes(searchLower) ||
         punto.nombrePremio?.toLowerCase().includes(searchLower) ||
         punto.fecha?.toLowerCase().includes(searchLower) ||
         punto.puntosRedimidos?.toString().toLowerCase().includes(searchLower) ||
         punto.tipoPremio?.toLowerCase().includes(searchLower) ||
-        punto.nombreCliente?.toLowerCase().includes(searchLower) ||  // Mover esto dentro del bloque principal
-        punto.numerowp?.toString().toLowerCase().includes(searchLower)
-      )
+        punto.nombreCliente?.toLowerCase().includes(searchLower) || // Mover esto dentro del bloque principal
+        punto.numerowp?.toString().toLowerCase().includes(searchLower))
     );
   });
-  
 
   const indexOfLastProduct = currentPage * rowsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - rowsPerPage;
@@ -140,48 +139,46 @@ function RedimirPuntos() {
           body: JSON.stringify({ estado: "Entregado" }),
         }
       );
-  
+
       if (!response.ok) {
         throw new Error("No se pudo actualizar el estado del premio.");
       }
-  
+
       setAlertMessage("Premio entregado con éxito.");
       setShowAlert(true);
-  
+
       // Actualiza el estado localmente
       setSolicitudesData((prevData) =>
         prevData.map((punto) =>
           punto.id === id ? { ...punto, estado: "Entregado" } : punto
         )
       );
-  
-      // Encuentra la solicitud redimida por id
-      const solicitudRedimida = solicitudesData.find((punto) => punto.id === id);
-      
-      if (solicitudRedimida) {
 
-        solicitudRedimida.plantilla= npremioentregado;
-        solicitudRedimida.flag=5;
-        solicitudRedimida.idBot=idBot;
-        solicitudRedimida.estado="Entregado";
+      // Encuentra la solicitud redimida por id
+      const solicitudRedimida = solicitudesData.find(
+        (punto) => punto.id === id
+      );
+
+      if (solicitudRedimida) {
+        solicitudRedimida.plantilla = npremioentregado;
+        solicitudRedimida.flag = 5;
+        solicitudRedimida.idBot = idBot;
+        solicitudRedimida.estado = "Entregado";
 
         let dataSolicitudRedencion = {
-          solicitudRedimida,  
-        
+          solicitudRedimida,
         };
-  
+
         // console.log(dataSolicitudRedencion, 'datasolicituddd');
-  
-        const response1 = await fetch(webhook,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(dataSolicitudRedencion),
-          }
-        );
-  
+
+        const response1 = await fetch(webhook, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dataSolicitudRedencion),
+        });
+
         if (!response1.ok) {
           // console.log("Error al enviar objeto");
         } else {
@@ -194,7 +191,6 @@ function RedimirPuntos() {
       setShowAlert(true);
     }
   };
-  
 
   useEffect(() => {
     getSolicitudes();
@@ -391,7 +387,7 @@ function RedimirPuntos() {
                     {punto.idPremio}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                  {punto.nombreCliente}
+                    {punto.nombreCliente}
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                     {punto.fecha}
@@ -417,7 +413,6 @@ function RedimirPuntos() {
                           : "bg-green-100 text-green-800 text-base font-medium  p-1 rounded dark:bg-green-900 dark:text-green-300"
                       }
                     >
-                  
                       {punto.estado}
                     </span>
                   </td>
