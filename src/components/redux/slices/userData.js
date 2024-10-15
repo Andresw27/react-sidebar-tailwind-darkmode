@@ -27,6 +27,8 @@ const initialState = {
   Rtiktok: '',
   linkwp1: '',
   linkwp2: '',
+  logo:'',
+  fondo:''
 
 };
 
@@ -35,7 +37,7 @@ export const userSlice = createSlice({
   initialState,
   reducers: {
     setUserData: (state, action) => {
-      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo, webhook , npremioentregado,ncancelado,logo,Rinstagram,Rfacebook,Rtiktok,linkwp1,linkwp2} = action.payload;
+      const { uid, PuntosporValor, password,nombreEmpresa, nit, naceptado,nrechazado, telefono, direccion, role, nentregado, nombre, ndistribucion, idBot, valorMinimo, identificador, correo, webhook , npremioentregado,ncancelado,logo,Rinstagram,Rfacebook,Rtiktok,linkwp1,linkwp2,fondo} = action.payload;
       state.uid = uid;
       state.logo = logo;
       state.PuntosporValor = PuntosporValor;
@@ -62,6 +64,8 @@ export const userSlice = createSlice({
       state.Rtiktok=Rtiktok;
       state.linkwp1=linkwp1;
       state.linkwp2=linkwp2;
+      state.logo=logo;
+      state.fondo=fondo;
 
     },
     clearUserData: (state) => {
@@ -91,6 +95,8 @@ export const userSlice = createSlice({
       state.Rtiktok=null;
       state.linkwp1=null;
       state.linkwp2=null;
+      state.logo=null;
+      state.fondo=null;
     },
   },
 });

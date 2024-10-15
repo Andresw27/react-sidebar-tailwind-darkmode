@@ -11,19 +11,21 @@ import AdminPuntos from "./pages/AdminPuntos";
 import Clientes from "./pages/Clientes";
 import UserPerfil from "./pages/PerfilUser";
 import RedimirPuntos from "./pages/RedimirPuntos";
-import ValidarPuntos from "./pages/AdminPuntosEspecial"
-import Publicidad from "./pages/PublicidadWeb"
-import MenuWeb from "./pages/MenúWeb"
+import ValidarPuntos from "./pages/AdminPuntosEspecial";
+import Publicidad from "./pages/PublicidadWeb";
+import MenuWeb from "./pages/MenúWeb";
 import Menus from "./pages/CategoriasMenu";
+import MenuHome from './pages/Pages-Menú/Menu';
 import app from "./firebase-config";
-
+import HomeMenu from './pages/Pages-Menú/HomeMenú';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase-config";
 import { useDispatch, useSelector } from "react-redux";
 import { setUserData, clearUserData } from "./components/redux/slices/userData";
 import { doc, onSnapshot } from "firebase/firestore";
-import Logo from "./assets/jeicy.png"
+import Logo from "./assets/jeicy.png";
 import { db } from "./firebase-config";
+
 const Routers = () => {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -32,7 +34,7 @@ const Routers = () => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setAuthLoading(false);
+      setAuthLoading(false); // Esto finaliza el estado de carga de la autenticación
       if (user) {
         setUser(user);
         dispatch(setUserData({ uid: user.uid }));
@@ -52,7 +54,6 @@ const Routers = () => {
       const unsubscribe = onSnapshot(userDocRef, (userDocSnap) => {
         if (userDocSnap.exists()) {
           const dataUser = userDocSnap.data();
-          // console.log(dataUser,"holass")
           dispatch(setUserData({
             PuntosporValor: dataUser.PuntosporValor,
             uid: user.uid,
@@ -72,31 +73,29 @@ const Routers = () => {
             correo: dataUser.correo,
             password: dataUser.password,
             webhook: dataUser.webhook,
-            npremioentregado:dataUser.npremioentregado,
-            ncancelado:dataUser.ncancelado,
-            logo:dataUser.logo,
-            Rfacebook:dataUser.Rfacebook,
-            Rinstagram:dataUser.Rinstagram,
-            Rtiktok:dataUser.Rtiktok,
-            linkwp1:dataUser.linkwp1,
-            linkwp2:dataUser.linkwp2
-
+            npremioentregado: dataUser.npremioentregado,
+            ncancelado: dataUser.ncancelado,
+            logo: dataUser.logo,
+            Rfacebook: dataUser.Rfacebook,
+            Rinstagram: dataUser.Rinstagram,
+            Rtiktok: dataUser.Rtiktok,
+            linkwp1: dataUser.linkwp1,
+            linkwp2: dataUser.linkwp2
           }));
         } else {
-          // console.log('No such document!');
+          console.log('No such document!');
         }
-        setUserLoading(false);
+        setUserLoading(false); // Finaliza el estado de carga de los datos del usuario
       }, (error) => {
-        // console.error('Error al obtener datos de usuario:', error);
+        console.error('Error al obtener datos de usuario:', error);
         setUserLoading(false);
       });
       return () => unsubscribe();
     }
   }, [user, dispatch]);
 
-  const { uidUser } = useSelector(state => state.user);
-
-  if (authLoading || userLoading) {
+  // Mostrar el loading solo para usuarios logueados
+  if (user && userLoading) {
     return (
       <div className="bg-blue">
         <div className='flex items-center justify-center h-screen bg-black'>
@@ -134,11 +133,14 @@ const Routers = () => {
             <Route path="/productos" element={<Productos />} />
             <Route path="/menuweb" element={<MenuWeb />} />
             <Route path="/publicidad" element={<Publicidad />} />
-            <Route path="/Menus" element={<Menus/>} />
-
+            <Route path="/Menus" element={<Menus />} />
           </>
         ) : (
-          <Route path="/" element={<Login />} />
+          <>
+            <Route path="/" element={<Login />} />
+            <Route path="/:nombreEmpresa" element={<HomeMenu />} />
+            <Route path="/:nombreEmpresa/menu/:IdMenu" element={<MenuHome />} />
+          </>
         )}
         <Route path="*" element={<NotFound />} />
       </Routes>

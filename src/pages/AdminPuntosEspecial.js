@@ -247,13 +247,14 @@ function AdminPuntos() {
 
     const accionesQuery = query(
       accionesRef,
-      where("tipo", "==", "especial"), // Filtrar por tipo
-      orderBy("createAt", "desc") 
+      where("tipo", "==", "especial"), 
+      orderBy("fecha", "desc") 
     );
 
     // Escucha los cambios con 'onSnapshot'
     const unsubscribe = onSnapshot(accionesQuery, async (snapshot) => {
       const solicitudesPromises = snapshot.docs.map(async (doc) => {
+        
         const data = doc.data();
         data.id = doc.id;
 
@@ -265,10 +266,11 @@ function AdminPuntos() {
 
       // Resuelve todas las promesas de manera paralela
       const solicitudes = await Promise.all(solicitudesPromises);
+      const filtro=solicitudes.sort((a,b)=> a.fecha - b.fecha)
 
+      
       // Actualiza el estado con las solicitudes
-      setDataClientesFactura(solicitudes);
-      console.log(solicitudes, "solicitudes");
+      setDataClientesFactura(filtro);
     });
 
     // Devuelve la función para cancelar la suscripción

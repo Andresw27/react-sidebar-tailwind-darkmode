@@ -3,8 +3,14 @@ import Layout from "../components/Layout";
 import Modal from "../components/Modal";
 import { IoSearch } from "react-icons/io5";
 import { IoFastFoodSharp } from "react-icons/io5";
-import { getStorage, ref, uploadBytes, getDownloadURL,deleteObject } from "firebase/storage"; // Firebase Storage
-import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage"; // Firebase Storage
+import { FaRegEdit, FaRegTrashAlt, FaRegCopy } from "react-icons/fa";
 import Alert from "../components/Alert"; // Importa el componente de alerta
 
 import { Tooltip } from "@material-tailwind/react";
@@ -52,8 +58,35 @@ function CategoriasMenu() {
   const [editcategoriamenu, seteditcategoriamenu] = useState("");
   const [previewUrl, setPreviewUrl] = useState(null);
   const [selectcategoriamenu, setselectcategoriamenu] = useState(null);
-  const [deletecategoriamenu,setdeletecategoriamenu] = useState("");
+  const [deletecategoriamenu, setdeletecategoriamenu] = useState("");
   const [selectcategoriamenudele, setselectcategoriamenudele] = useState(null);
+  const [opencopyrutaMenu, setopencopyrutaMenu] = useState("");
+  const [categoriaActiva, setcategoriaActiva] = useState(false);
+
+  //modales new categoria de menu
+  const handleOpenmodalcopymenu = (menu) => {
+    setopencopyrutaMenu(true);
+    setselectmenu(menu);
+  };
+
+  const handleClosedmodalcopymenu = () => {
+    setopencopyrutaMenu(false);
+    setopenDropdownmenu(false);
+  };
+
+  const handleCopyToClipboard = () => {
+    const menuRuta = `${nombreEmpresa}/menu/${selectmenu?.IdMenu}`;
+    navigator.clipboard
+      .writeText(menuRuta)
+      .then(() => {
+        setAlertMessage("Ruta copiada con éxito");
+        setShowAlert(true);
+        handleClosedmodalcopymenu(); // Cerrar modal después de copiar
+      })
+      .catch((error) => {
+        console.error("Error al copiar la ruta:", error);
+      });
+  };
   //modales new categoria de menu
   const handleopenmodalnewcategoriamenu = () => {
     setOpenNewCategoria(true);
@@ -337,6 +370,7 @@ function CategoriasMenu() {
         foto: logoURL, // Usar la URL obtenida como foto de la categoría
         IdCategoria: getRandomIdentifier(), // Usa el IdMenu del menú seleccionado
         IdMenu: selectedMenu,
+        activeCategory: categoriaActiva,
       };
 
       // Guardar la nueva categoría en Firestore (dentro del menú seleccionado)
@@ -617,25 +651,25 @@ function CategoriasMenu() {
   //funcion para editar categoria del menu
   const handleEditCategoriaMenu = async (e) => {
     e.preventDefault(); // Evitar el comportamiento por defecto del formulario
-
+  
     try {
       // Obtener el UID del usuario basado en el identificador
       const userQuery = query(
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
       );
-
+  
       const querySnapshot = await getDocs(userQuery);
       let uidUser = "";
       querySnapshot.forEach((doc) => {
         uidUser = doc.id;
       });
-
+  
       if (!uidUser) {
         console.error("Usuario no encontrado");
         return;
       }
-
+  
       const publicidadRef = doc(
         db,
         "categoriaMenu",
@@ -645,32 +679,36 @@ function CategoriasMenu() {
         "categorias",
         selectcategoriamenu.id
       );
-
+  
+      // Mantener la foto existente inicialmente
       let logoURL = selectcategoriamenu.foto;
+  
       if (fotoCategoria) {
         const storage = getStorage();
         const storageRef = ref(
           storage,
           `ImgProductosmenu/${nombreEmpresa}/${fotoCategoria.name}`
         );
-
+  
         // Subir la nueva imagen a Firebase Storage
         await uploadBytes(storageRef, fotoCategoria);
-
+  
         // Obtener la URL de descarga de la nueva imagen
-        logoURL = await getDownloadURL(storageRef);
+        logoURL = await getDownloadURL(storageRef); // Actualiza logoURL solo si hay una nueva foto
       }
-
+  
       // Crear el objeto con los nuevos datos de la publicidad
       const updatedPublicidad = {
         nombre: nombreCategoria || selectcategoriamenu.nombre,
-        foto: logoURL,
+        foto: logoURL, // Esto ahora puede ser la foto existente o la nueva
         descripcion: descripcionCategoria || selectcategoriamenu.descripcion,
-      };
+        activeCategory: categoriaActiva,
 
+      };
+  
       // Actualizar la publicidad en Firestore
       await updateDoc(publicidadRef, updatedPublicidad);
-
+  
       console.log("Publicidad editada exitosamente en Firestore.");
       fetchCategoriaMenu();
       handleClosededitCategoriamenu();
@@ -681,40 +719,38 @@ function CategoriasMenu() {
       console.error("Error al editar la publicidad:", error);
     }
   };
+  
   //Modal para eliminar categoria de un menu
   const HandleOpenDeleteCategoriaMenu = (categoria) => {
     setdeletecategoriamenu(true);
     setselectcategoriamenudele(categoria);
-    console.log(categoria,"categoria");
+    console.log(categoria, "categoria");
   };
   const HandleClosedDeleteCategoriaMenu = () => {
     setdeletecategoriamenu(false);
     setopenDropdownmenuCategorias(false);
-
-
   };
 
   //funcion eliminar categoria de un Menú
   const handleDeleteCategoriaMenu = async (selectcategoriamenudele) => {
-  
     try {
       // Obtener el UID del usuario basado en el identificador
       const userQuery = query(
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
       );
-  
+
       const querySnapshot = await getDocs(userQuery);
       let uidUser = "";
       querySnapshot.forEach((doc) => {
         uidUser = doc.id;
       });
-  
+
       if (!uidUser) {
         console.error("Usuario no encontrado");
         return;
       }
-  
+
       const publicidadRef = doc(
         db,
         "categoriaMenu",
@@ -724,7 +760,7 @@ function CategoriasMenu() {
         "categorias",
         selectcategoriamenudele.id
       );
-  
+
       // // Eliminar la imagen de Firebase Storage, si existe
       // if (selectcategoriamenudele.foto) {
       //   const storage = getStorage();
@@ -732,15 +768,15 @@ function CategoriasMenu() {
       //     storage,
       //     `ImgProductosmenu/${nombreEmpresa}/${selectcategoriamenudele.foto}`
       //   );
-  
+
       //   await deleteObject(storageRef); // Eliminar la imagen de Firebase Storage
       //   console.log("Imagen eliminada de Firebase Storage.");
       // }
-  
+
       // Eliminar la categoría de Firestore
       await deleteDoc(publicidadRef);
       console.log("Categoría eliminada exitosamente de Firestore.");
-  
+
       // Actualizar la lista de categorías después de eliminar
       fetchCategoriaMenu();
       HandleClosedDeleteCategoriaMenu();
@@ -751,10 +787,10 @@ function CategoriasMenu() {
       console.error("Error al eliminar la categoría:", error);
     }
   };
-  
+
   return (
     <Layout>
-        {showAlert && (
+      {showAlert && (
         <Alert message={alertMessage} onClose={() => setShowAlert(false)} />
       )}
       <div className="my-3 mx-10 flex justify-between">
@@ -880,7 +916,7 @@ function CategoriasMenu() {
                                 }}
                                 className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
                               >
-                                <FaRegEdit /> Editar Menú
+                                <FaRegEdit /> Editar menú
                               </a>
                             </li>
                             <Modal
@@ -901,7 +937,7 @@ function CategoriasMenu() {
                                     htmlFor="text"
                                     className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                   >
-                                    Nombre Menú
+                                    Nombre menú
                                   </label>
                                   <input
                                     type="text"
@@ -918,7 +954,7 @@ function CategoriasMenu() {
                                     htmlFor="number"
                                     className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                                   >
-                                    Descripción Menú
+                                    Descripción menú
                                   </label>
                                   <input
                                     type="text"
@@ -935,7 +971,7 @@ function CategoriasMenu() {
                                   type="submit"
                                   className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                                 >
-                                  Actualizar Menú
+                                  Actualizar menú
                                 </button>
                               </form>
                             </Modal>
@@ -947,7 +983,7 @@ function CategoriasMenu() {
                                 }}
                                 className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
                               >
-                                <FaRegTrashAlt /> Eliminar Menú
+                                <FaRegTrashAlt /> Eliminar menú
                               </a>
                               <Modal
                                 isOpen={deletemenu}
@@ -987,6 +1023,50 @@ function CategoriasMenu() {
                                 )}
                               </Modal>
                             </li>
+                            <li>
+                              <a
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenmodalcopymenu(menu);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                              >
+                                <FaRegCopy /> Copiar ruta del menú
+                              </a>
+                              <Modal
+                                isOpen={opencopyrutaMenu}
+                                nombre="Copiar Ruta Menú"
+                                onClose={handleClosedmodalcopymenu}
+                                size="auto"
+                                Fondo="auto"
+                              >
+                                {selectmenu && (
+                                  <div className="mt-4">
+                                    <p>
+                                      <span className="font-semibold text-xl">
+                                        {`${nombreEmpresa}/menu/${selectmenu.IdMenu}`}
+                                      </span>{" "}
+                                      <span className="font-semibold"></span>
+                                    </p>
+
+                                    <div className="flex justify-end gap-2 mt-4">
+                                      <button
+                                        onClick={handleCopyToClipboard}
+                                        className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                                      >
+                                        Copiar
+                                      </button>
+                                      <button
+                                        onClick={handleClosedmodalcopymenu}
+                                        className="text-white bg-gray-500 hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-gray-400 dark:hover:bg-gray-500 dark:focus:ring-gray-600"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </Modal>
+                            </li>
                           </ul>
                         </div>
                       )}
@@ -999,7 +1079,7 @@ function CategoriasMenu() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <h3 className="text-md font-semibold">Categorías</h3>
+                        <h3 className="text-sm font-semibold">Categorías</h3>
                         <p className="text-sm text-gray-600">
                           {categoriasFiltradas.length}
                         </p>
@@ -1130,7 +1210,7 @@ function CategoriasMenu() {
                                             }
                                             value={nombreCategoria}
                                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                            required
+                                          
                                           />
                                         </div>
                                         <div>
@@ -1149,7 +1229,7 @@ function CategoriasMenu() {
                                             }
                                             value={descripcionCategoria}
                                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                            required
+                                         
                                           />
                                         </div>
                                         <div>
@@ -1163,15 +1243,34 @@ function CategoriasMenu() {
                                             type="file"
                                             onChange={handleImageChange}
                                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                            required
+                                          
                                           />
+                                        </div>
+                                        <div className="flex items-center">
+                                          <input
+                                            type="checkbox"
+                                            id="categoriaActiva"
+                                            onChange={(e) =>
+                                              setcategoriaActiva(
+                                                e.target.checked
+                                              )
+                                            }
+                                            checked={categoriaActiva}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+                                          />
+                                          <label
+                                            htmlFor="categoriaActiva"
+                                            className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
+                                          >
+                                            ¿Hacer esta categoría activa?
+                                          </label>
                                         </div>
 
                                         <button
                                           type="submit"
                                           className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                                         >
-                                          Añadir Categoria
+                                          Actualizar Categoria
                                         </button>
                                       </form>
                                     </div>
@@ -1204,7 +1303,7 @@ function CategoriasMenu() {
                                   <FaRegTrashAlt /> Eliminar Categoria
                                 </a>
                               </li>
-                                <Modal
+                              <Modal
                                 isOpen={deletecategoriamenu}
                                 nombre="Eliminar Categoria"
                                 onClose={HandleClosedDeleteCategoriaMenu}
@@ -1214,7 +1313,8 @@ function CategoriasMenu() {
                                 {selectcategoriamenudele && (
                                   <div className="mt-4">
                                     <p>
-                                      ¿Estás seguro de que deseas eliminar la categoria {" "}
+                                      ¿Estás seguro de que deseas eliminar la
+                                      categoria{" "}
                                       <span className="font-semibold">
                                         {selectcategoriamenudele.nombre}
                                       </span>{" "}
@@ -1224,14 +1324,18 @@ function CategoriasMenu() {
                                     <div className="flex justify-end gap-2 mt-4">
                                       <button
                                         onClick={() =>
-                                          handleDeleteCategoriaMenu(selectcategoriamenudele)
+                                          handleDeleteCategoriaMenu(
+                                            selectcategoriamenudele
+                                          )
                                         }
                                         className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
                                       >
                                         Eliminar
                                       </button>
                                       <button
-                                        onClick={HandleClosedDeleteCategoriaMenu}
+                                        onClick={
+                                          HandleClosedDeleteCategoriaMenu
+                                        }
                                         className="text-white bg-gray-500 hover:bg-gray-600 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-gray-400 dark:hover:bg-gray-500 dark:focus:ring-gray-600"
                                       >
                                         Cancelar
@@ -1321,34 +1425,14 @@ function CategoriasMenu() {
                         </span>
 
                         <div className="mt-4 px-5 pb-5">
-                          <p>
-                            <h5 className="text-xl tracking-tight text-slate-900">
-                              {producto.nombre}
-                            </h5>
-                          </p>
-                          <p>
-                            <h5 className="text-base tracking-tight text-slate-400">
-                              {producto.descripcion}
-                            </h5>
-                          </p>
-
-                          <div className="mt-2 mb-5 flex items-center justify-between">
+                          <div className="flex gap-4 justify-between">
                             <p>
-                              <span className="text-xl font-bold text-slate-900">
-                                {" "}
-                                {`${Number(producto.valor).toLocaleString(
-                                  "es-CO",
-                                  {
-                                    style: "currency",
-                                    currency: "COP",
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  }
-                                )}`}
-                              </span>
+                              <h5 className="text-xl tracking-tight text-slate-900">
+                                {producto.nombre}
+                              </h5>
                             </p>
-                            <div className="flex items-center space-x-1">
-                              {Array.from({ length: 5 }, (_, index) => (
+                            <div className="flex justify-end items-center space-x-1">
+                              {Array.from({ length: 1 }, (_, index) => (
                                 <svg
                                   key={index}
                                   aria-hidden="true"
@@ -1372,6 +1456,50 @@ function CategoriasMenu() {
                               </span>
                             </div>
                           </div>
+
+                          <p>
+                            <h5 className="text-base tracking-tight text-slate-400">
+                              {producto.descripcion}
+                            </h5>
+                          </p>
+
+                          <div className="mt-2 mb-5 flex items-start ">
+                            <p>
+                              <span className="text-base font-bold text-slate-900">
+                                {producto.variacion
+                                  ? producto.variacion.map((valor, id) => (
+                                      <div
+                                        className="flex  items-end justify-between gap-4"
+                                        key={id}
+                                      >
+                                        <p className=" w-32  border-r-2 border-gray-400 ">
+                                          {valor.descripcion}
+                                        </p>
+                                        <p>
+                                          {Number(valor.precio).toLocaleString(
+                                            "es-CO",
+                                            {
+                                              style: "currency",
+                                              currency: "COP",
+                                              minimumFractionDigits: 0,
+                                              maximumFractionDigits: 0,
+                                            }
+                                          )}
+                                        </p>
+                                      </div>
+                                    ))
+                                  : `${Number(producto.valor).toLocaleString(
+                                      "es-CO",
+                                      {
+                                        style: "currency",
+                                        currency: "COP",
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0,
+                                      }
+                                    )}`}
+                              </span>
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1390,47 +1518,68 @@ function CategoriasMenu() {
           <form className="space-y-4" onSubmit={handleAddNewCategoriaMenu}>
             <div>
               <label
-                htmlFor="text"
+                htmlFor="nombreCategoria"
                 className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
                 Nombre Categoria
               </label>
               <input
                 type="text"
+                id="nombreCategoria"
                 onChange={(e) => setnombreCategoria(e.target.value)}
                 value={nombreCategoria}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                 required
               />
             </div>
+
             <div>
               <label
-                htmlFor="number"
+                htmlFor="descripcionCategoria"
                 className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
                 Descripción Categoria
               </label>
               <input
                 type="text"
+                id="descripcionCategoria"
                 onChange={(e) => setdescripcionCategoria(e.target.value)}
                 value={descripcionCategoria}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                 required
               />
             </div>
+
             <div>
               <label
-                htmlFor="number"
+                htmlFor="fotoCategoria"
                 className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
               >
                 Foto Categoria
               </label>
               <input
                 type="file"
+                id="fotoCategoria"
                 onChange={handleImageChange}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                 required
               />
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="categoriaActiva"
+                onChange={(e) => setcategoriaActiva(e.target.checked)}
+                checked={categoriaActiva}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label
+                htmlFor="categoriaActiva"
+                className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
+              >
+                ¿Hacer esta categoría activa?
+              </label>
             </div>
 
             <button

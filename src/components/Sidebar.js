@@ -191,17 +191,17 @@ import { UserContext } from "../UserContext";
             <div key={index}>
               <Link to={menu.path} onClick={() => handleMenuClick(menu)}>
                 <li
-                  className={`flex items-center gap-x-2 p-3 text-base font-normal rounded-lg cursor-pointer dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transform hover:scale-105 transition duration-100 ease-in-out
+                  className={`flex text-black  items-center gap-x-2 p-3 text-base font-normal rounded-lg cursor-pointer dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transform hover:scale-105 transition duration-100 ease-in-out
                     ${menu.gap ? "mt-9" : "mt-2"} 
                     ${
                       location.pathname === menu.path
-                        ? "bg-slate-900 hover:bg-slate-900 text-white"
+                        ? "bg-slate-900 text-black  hover:bg-slate-900 "
                         : ""
                     }`}
                 >
                   {open ? (
                     <span
-                      className={`text-2xl ${
+                      className={`text-2xl text-black ${
                         location.pathname === menu.path ? "text-white" : ""
                       }`}
                     >
@@ -244,10 +244,10 @@ import { UserContext } from "../UserContext";
                       onClick={() => mobileMenu && setMobileMenu(false)}
                     >
                       <li
-                        className={`flex items-center gap-x-2 p-2 text-base font-normal rounded-lg cursor-pointer dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transform hover:scale-105 transition duration-100 ease-in-out
+                        className={`flex text-black  items-center gap-x-2 p-2 text-base font-normal rounded-lg cursor-pointer dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transform hover:scale-105 transition duration-100 ease-in-out
                           ${
                             location.pathname === subMenu.path
-                              ? "bg-slate-900 hover:bg-slate-900 text-white"
+                              ? "bg-slate-900 hover:bg-slate-900 text-black "
                               : ""
                           }`}
                       >

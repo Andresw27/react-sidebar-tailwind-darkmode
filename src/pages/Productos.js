@@ -45,8 +45,10 @@ function Productos() {
   const [DataMenus, setDataMenus] = useState([]);
   const [DataCategorias, setDataCategorias] = useState([]);
   const { identificador, nombreEmpresa } = useSelector((state) => state.user);
-  console.log(identificador, nombreEmpresa);
-
+  const [SelectedMenuNombre, setSelectedMenuNombre] = useState(null);
+  const [productoConVariaciones, setProductoConVariaciones] = useState(false);
+  const [variaciones, setVariaciones] = useState([]);
+  const [SelectedCategoryNombre, setSelectedCategoryNombre] = useState(null);
   const handleSearchClick = () => {
     setSearchVisible(true);
   };
@@ -57,9 +59,24 @@ function Productos() {
     console.log(menu);
   };
   const handlemenuCategory = (event) => {
-    setcategoriaMenu(event.target.value);
-    console.log(event);
+    const selectedCategoryId = event.target.value;
+
+    // Busca la categoría seleccionada en el arreglo DataCategorias
+    const selectedCategory = DataCategorias.find(
+      (category) => category.IdCategoria === selectedCategoryId
+    );
+
+    // Actualiza el estado con el Id de la categoría
+    setcategoriaMenu(selectedCategoryId);
+
+    // Si la categoría existe, actualiza el estado con el nombre de la categoría
+    if (selectedCategory) {
+      setSelectedCategoryNombre(selectedCategory.nombre); // Actualiza el estado con el nombre
+      console.log(selectedCategory.nombre);
+      console.log(SelectedCategoryNombre); // Muestra el nombre de la categoría en la consola
+    }
   };
+
   const handlecalificacionProducto = (event) => {
     setcalificacionProducto(event.target.value);
     console.log(calificacionProducto);
@@ -70,7 +87,10 @@ function Productos() {
   };
 
   const handleImageChange = (e) => {
-    setlogoProducto(e.target.files[0]); // Almacena el archivo
+    const file = e.target.files[0];
+    if (file) {
+      setlogoProducto(file); // Guardar el archivo seleccionado
+    }
   };
 
   const handleCloseClick = () => {
@@ -167,18 +187,46 @@ function Productos() {
       // Obtener la URL de descarga del archivo
       const logoURL = await getDownloadURL(storageRef);
 
-      const newProduct = {
-        nombre: nombreProducto,
-        precio: valorProducto,
-        descripcion: descripcionProducto,
-        foto: logoURL,
-        categoriaItem: categoriaMenu,
-        calificación: calificacionProducto,
-        estado: estadoProducto,
-        menuItem: menu,
-        popular: "1",
-      };
+      // Crear el objeto del nuevo producto, con o sin variaciones
+      let newProduct;
 
+      if (productoConVariaciones) {
+        // Si el producto tiene variaciones, agregar las variaciones
+        newProduct = {
+          nombre: nombreProducto,
+          descripcion: descripcionProducto,
+          foto: logoURL,
+          categoriaItem: categoriaMenu,
+          calificación: calificacionProducto,
+          estado: estadoProducto,
+          menuItem: menu,
+          popular: "1",
+          menuNombre: SelectedMenuNombre,
+          nombreCategoria: SelectedCategoryNombre,
+          variacion: variaciones.map((variacion) => ({
+            descripcion: variacion.descripcion,
+            precio: variacion.valor,
+          })),
+        };
+      } else {
+        // Si el producto no tiene variaciones, agregar el valor general
+        newProduct = {
+          nombre: nombreProducto,
+          precio: valorProducto,
+          descripcion: descripcionProducto,
+          foto: logoURL,
+          categoriaItem: categoriaMenu,
+          calificación: calificacionProducto,
+          estado: estadoProducto,
+          menuItem: menu,
+          popular: "1",
+          menuNombre: SelectedMenuNombre,
+          nombreCategoria: SelectedCategoryNombre,
+          recomendado:"1",
+          nuevo:"1"
+        };
+      }
+      console.log(newProduct, "producto");
       // Enviar los datos a la API
       const response = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/new/${identificador}`,
@@ -199,6 +247,7 @@ function Productos() {
         closeModal();
       } else {
         const result = await response.json();
+        console.log(newProduct);
         setAlertMessage("Producto añadido con éxito");
         setShowAlert(true);
         setNombreProducto("");
@@ -212,6 +261,7 @@ function Productos() {
       setShowErrorAlert(true);
     }
   };
+  //Eliminar Producto
   const handleDelete = async () => {
     if (!selectedProduct) return;
 
@@ -237,6 +287,7 @@ function Productos() {
       // console.error("Error deleting product:", error);
     }
   };
+
   //editar produtcto funcion
   const openEditModal = (product) => {
     setProductToEdit(product);
@@ -263,25 +314,38 @@ function Productos() {
     setEditModalOpen(false);
   };
 
-  const handleEditSubmit = async (e, logoURL) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (!productToEdit) {
-      // console.error("No product to edit");
       return;
     }
+  
+    // Si logoProducto es un archivo, obtén la URL, de lo contrario, usa la foto existente
+    let fotoUrl;
+    if (logoProducto) {
+      const storage = getStorage();
+      const storageRef = ref(storage, `ImgProductosmenu/${nombreEmpresa}/${logoProducto.name}`);
+      await uploadBytes(storageRef, logoProducto); // Sube la nueva imagen
+      fotoUrl = await getDownloadURL(storageRef); // Obtiene la URL de descarga
+    } else {
+      fotoUrl = productToEdit.foto; // Usa la imagen existente si no hay nuevo archivo
+    }
+  
     const updatedProduct = {
       ...productToEdit,
       nombre: nombreProducto,
       precio: valorProducto,
       descripcion: descripcionProducto,
-      foto: logoURL,
+      foto: fotoUrl,
       categoriaItem: categoriaMenu,
       calificación: calificacionProducto,
       estado: estadoProducto,
       menuItem: menu,
+      nombreCategoria:SelectedCategoryNombre,
+      menuNombre:SelectedMenuNombre
     };
-
+  
     try {
       const response = await fetch(
         `https://us-central1-jeicydelivery.cloudfunctions.net/app/productos/actualizar/${identificador}/${productToEdit.id}`,
@@ -293,26 +357,27 @@ function Productos() {
           body: JSON.stringify(updatedProduct),
         }
       );
-
+  
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log("Server response:", errorText);
         setAlertMessage("Error al editar el producto. Inténtalo nuevamente.");
         setShowErrorAlert(true);
         closeEditModal();
+      } else {
+        const result = await response.json();
+        setAlertMessage("Producto actualizado con éxito");
+        setShowAlert(true);
+        closeEditModal();
+        fetchProductos();
       }
-
-      const result = await response.json();
-      // console.log("Product updated successfully:", result);
-      setAlertMessage("Producto actualizado con éxito");
-      setShowAlert(true);
-      closeEditModal();
-      fetchProductos();
     } catch (error) {
-      // console.error("Error updating product:", error);
+      console.error("Error updating product:", error);
     }
   };
-
   
-//Obtner Menus
+
+  //Obtner Menus
   const fetchMenus = async () => {
     try {
       const userQuery = query(
@@ -352,7 +417,7 @@ function Productos() {
   useEffect(() => {
     fetchMenus();
   }, []);
-//Obtener 
+  //Obtener
   const fetchCategoriaMenu = async () => {
     try {
       // Paso 1: Consultar la colección "usuarios" para obtener el UID del usuario
@@ -440,9 +505,36 @@ function Productos() {
   const handleMenuChange = (event) => {
     const selectedMenuId = event.target.value;
 
-    // Actualiza ambos estados
-    setMenu(selectedMenuId); // Actualiza el menú
-    setSelectedMenu(selectedMenuId); // Actualiza el menú seleccionado
+    // Busca el menú en DataMenus utilizando el IdMenu
+    const selectedMenu = DataMenus.find(
+      (menu) => menu.IdMenu === selectedMenuId
+    );
+
+    // Actualiza el estado con el IdMenu seleccionado
+    setMenu(selectedMenuId);
+    setSelectedMenu(selectedMenuId);
+
+    // Si el menú existe, actualiza el estado con el nombre del menú
+    if (selectedMenu) {
+      setSelectedMenuNombre(selectedMenu.nombre); // Almacena el nombre del menú
+      console.log(selectedMenu.nombre); // Muestra el nombre en la consola
+    }
+  };
+
+  const agregarVariacion = () => {
+    setVariaciones([...variaciones, { descripcion: "", valor: "" }]);
+  };
+
+  const eliminarVariacion = (index) => {
+    const nuevasVariaciones = [...variaciones];
+    nuevasVariaciones.splice(index, 1);
+    setVariaciones(nuevasVariaciones);
+  };
+
+  const handleVariacionChange = (index, campo, valor) => {
+    const nuevasVariaciones = [...variaciones];
+    nuevasVariaciones[index][campo] = valor;
+    setVariaciones(nuevasVariaciones);
   };
 
   return (
@@ -513,7 +605,7 @@ function Productos() {
             isOpen={isModalOpen}
             nombre="Añadir Nuevo Producto"
             onClose={closeModal}
-            size="auto"
+            size="fixed"
             Fondo="auto"
           >
             <div>
@@ -556,24 +648,108 @@ function Productos() {
                         required
                       />
                     </div>
+
+                    {/* Checkbox para indicar si el producto tiene variaciones */}
+
+                    {/* Si el producto NO tiene variaciones, mostrar el campo de valor general */}
+                    {!productoConVariaciones && (
+                      <div className="md:w-full px-3 mb-6 md:mb-0">
+                        <label
+                          htmlFor="number"
+                          className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                        >
+                          Valor Producto
+                        </label>
+                        <input
+                          type="number"
+                          name="valorProducto"
+                          value={valorProducto}
+                          onChange={(e) => setValorProducto(e.target.value)}
+                          id="valorProducto"
+                          placeholder="Valor producto"
+                          className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
+                          required
+                        />
+                      </div>
+                    )}
                     <div className="md:w-full px-3 mb-6 md:mb-0">
-                      <label
-                        htmlFor="number"
-                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                      >
-                        Valor Producto
+                      <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                        ¿Producto con variaciones de precio?
                       </label>
                       <input
-                        type="number"
-                        name="valorProducto"
-                        value={valorProducto}
-                        onChange={(e) => setValorProducto(e.target.value)}
-                        id="valorProducto"
-                        placeholder="Valor producto"
-                        className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
-                        required
+                        type="checkbox"
+                        name="productoConVariaciones"
+                        checked={productoConVariaciones}
+                        onChange={(e) =>
+                          setProductoConVariaciones(e.target.checked)
+                        }
                       />
                     </div>
+
+                    {/* Si el producto TIENE variaciones, mostrar los inputs dinámicos */}
+                  </div>
+                  <div className="-mx-3 md:flex mb-6">
+                    {productoConVariaciones && (
+                      <div className="md:w-full px-3 mb-6 md:mb-0">
+                        <label
+                          htmlFor="number"
+                          className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                        >
+                          Variaciones del Producto
+                        </label>
+
+                        {variaciones.map((variacion, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center space-x-4 mb-4"
+                          >
+                            <input
+                              type="text"
+                              name="descripcionVariacion"
+                              value={variacion.descripcion}
+                              onChange={(e) =>
+                                handleVariacionChange(
+                                  index,
+                                  "descripcion",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Descripción de la variación "
+                              className="appearance-none block w-full bg-grey-lighter text-grey-darker border rounded py-3 px-4 mb-3"
+                            />
+                            <input
+                              type="number"
+                              name="valorVariacion"
+                              value={variacion.valor}
+                              onChange={(e) =>
+                                handleVariacionChange(
+                                  index,
+                                  "valor",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Valor de la variación"
+                              className="appearance-none block w-full bg-grey-lighter text-grey-darker border rounded py-3 px-4 mb-3"
+                            />
+                            <button
+                              type="button"
+                              className="text-red-500"
+                              onClick={() => eliminarVariacion(index)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          className="text-blue-500 px-2 text-center text-2xl bg-slate-100 rounded-full"
+                          onClick={agregarVariacion}
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="-mx-3 md:flex mb-6">
@@ -607,15 +783,16 @@ function Productos() {
                           Selecciona un menú
                         </option>
                         {DataMenus.length > 0 ? (
-                           DataMenus.map((menu) => (
-                            <option value={menu.IdMenu}>{menu.nombre}</option>
+                          DataMenus.map((menu) => (
+                            <option key={menu.IdMenu} value={menu.IdMenu}>
+                              {menu.nombre}
+                            </option>
                           ))
                         ) : (
                           <option value="" disabled>
-                          No hay menús configurados
-                        </option>
+                            No hay menús configurados
+                          </option>
                         )}
-                       
                       </select>
                     </div>
                     <div className="md:w-full px-3 mb-6 md:mb-0">
@@ -637,8 +814,7 @@ function Productos() {
                         </option>
                         {categoriasFiltradas.length > 0 ? (
                           categoriasFiltradas.map((categoria) => (
-                            <option value={categoria.IdCategoria
-                            }>
+                            <option value={categoria.IdCategoria}>
                               {categoria.nombre}
                             </option>
                           ))
@@ -707,32 +883,34 @@ function Productos() {
             </div>
           </Modal>
         </div>
-        <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+        <table className="w-full text-xs text-left rtl:text-right text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              <th scope="col" className="px-6 py-3">
+              <th scope="col" className="px-4 py-2">
                 Nombre Producto
               </th>
-              <th scope="col" className="px-6 py-3">
-                Imagen 
+              <th scope="col" className="px-4 py-2">
+                Imagen
               </th>
-              <th scope="col" className="px-6 py-3">
-                Descripción
+              <th scope="col" className="px-4 py-2">
+                Descripción General
               </th>
-              <th scope="col" className="px-6 py-3">
+              <th scope="col" className="px-4 py-2">
+                Descripción producto va
+              </th>
+              <th scope="col" className="px-4 py-2">
                 Precio
               </th>
-              <th scope="col" className="px-6 py-3">
+              <th scope="col" className="px-4 py-2">
                 Menú
               </th>
-              <th scope="col" className="px-6 py-3">
+              <th scope="col" className="px-4 py-2">
                 Categoria
               </th>
-              <th scope="col" className="px-6 py-3">
+              <th scope="col" className="px-4 py-2">
                 Estado
               </th>
-           
-              <th scope="col" className="px-6 py-3">
+              <th scope="col" className="px-4 py-2">
                 Acción
               </th>
             </tr>
@@ -745,53 +923,72 @@ function Productos() {
                 </td>
               </tr>
             ) : (
-              currentProducts.map((product, index ,menu) => (
+              currentProducts.map((product, index) => (
                 <tr
                   key={index}
-                  className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  className="bg-white text-sm border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
                     {product.nombre}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    <img
-                      className="h-12 w-12 rounded-md"
-                      src={product.foto}
-                    ></img>
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
+                    <img className="h-10 w-10 rounded-md" src={product.foto} />
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
                     {product.descripcion}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {`${Number(product.valor).toLocaleString("es-CO", {
-                      style: "currency",
-                      currency: "COP",
-                    })}`}{" "}
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
+                    {" "}
+                    {product.variacion ? (
+                      product.variacion.map((valor) => (
+                        <p key={valor.id}>- {valor.descripcion}</p>
+                      ))
+                    ) : (
+                      <p>No aplica</p>
+                    )}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {product.nombre}
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
+                    {product.variacion
+                      ? product.variacion.map((valor) => (
+                          <p key={valor.id}>
+                            {`${Number(valor.precio).toLocaleString("es-CO", {
+                              style: "currency",
+                              currency: "COP",
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
+                            })}`}{" "}
+                          </p>
+                        ))
+                      : `${Number(product.valor).toLocaleString("es-CO", {
+                          style: "currency",
+                          currency: "COP",
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        })}`}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                    {product.categoriaItem}
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
+                    {product.menuNombre}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
+                    {product.nombreCategoria}
+                  </td>
+                  <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">
                     <span
                       className={
                         product.estado === "Inactivo"
-                          ? "bg-red-100 text-red-800 font-medium py-1  px-4  rounded-full dark:bg-red-900 dark:text-red-300"
-                          : "bg-green-100 text-green-800  font-medium py-1  px-4 rounded-full dark:bg-green-900 dark:text-green-300"
+                          ? "bg-red-100 text-red-800 py-1 px-3 rounded-full dark:bg-red-900 dark:text-red-300"
+                          : "bg-green-100 text-green-800 py-1 px-3 rounded-full dark:bg-green-900 dark:text-green-300"
                       }
                     >
                       {product.estado}
                     </span>
                   </td>
-            
-                  <td className="px-3 py-4 flex gap-2">
+                  <td className="px-3 py-2 flex gap-2">
                     <Tooltip content="Editar">
                       <button
                         type="button"
                         onClick={() => openEditModal(product)}
-                        className="text-white bg-yellow-400 hover:bg-yellow-500 focus:ring-4 focus:outline-none focus:ring-yellow-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:focus:ring-yellow-900"
+                        className="text-white bg-yellow-400 hover:bg-yellow-500 p-2.5 rounded-lg"
                       >
                         <FaRegEdit />
                       </button>
@@ -800,7 +997,7 @@ function Productos() {
                       <button
                         type="button"
                         onClick={() => openModall(product)}
-                        className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm p-2.5 text-center inline-flex items-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+                        className="text-white bg-red-700 hover:bg-red-800 p-2.5 rounded-lg"
                       >
                         <FaRegTrashAlt />
                       </button>
@@ -811,6 +1008,7 @@ function Productos() {
             )}
           </tbody>
         </table>
+
         <Modal
           className="h-auto"
           isOpen={editModalOpen}
@@ -819,189 +1017,287 @@ function Productos() {
           size="auto"
           Fondo="auto"
         >
-          <div>
-            <form className="space-y-4" onSubmit={handleEditSubmit}>
-              <div className="p-4">
-                <div className="-mx-3 md:flex mb-6">
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label
-                      htmlFor="text"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Nombre Producto
-                    </label>
-                    <input
-                      type="text"
-                      name="nombreProducto"
-                      value={nombreProducto}
-                      onChange={(e) => setNombreProducto(e.target.value)}
-                      id="nombreProducto"
-                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
-                      placeholder="Nombre producto"
-                      required
-                    />
-                  </div>
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label
-                      htmlFor="number"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Descripción Producto
-                    </label>
-                    <input
-                      type="text"
-                      name="descripcionProducto"
-                      value={descripcionProducto}
-                      onChange={(e) => setdescripcionProducto(e.target.value)}
-                      id="descripcionProducto"
-                      placeholder="Descripción producto"
-                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
-                      required
-                    />
-                  </div>
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label
-                      htmlFor="number"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Valor Producto
-                    </label>
-                    <input
-                      type="number"
-                      name="valorProducto"
-                      value={valorProducto}
-                      onChange={(e) => setValorProducto(e.target.value)}
-                      id="valorProducto"
-                      placeholder="Valor producto"
-                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
-                      required
-                    />
-                  </div>
-                </div>
+    <div className="grid grid-cols-3 gap-6">
+  <div className="col-span-1">
+    {productToEdit && productToEdit.foto && (
+      <img
+        src={productToEdit.foto}
+        alt="Imagen actual del producto"
+        className="mb-4 max-w-full max-h-[400px] object-cover"
+      />
+    )}
+  </div>
 
-                <div className="-mx-3 md:flex mb-6">
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label
-                      htmlFor="text"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Imagen Producto
-                    </label>
-                    <input
-                      type="file"
-                      id="imgProducto"
-                      onChange={handleImageChange}
-                      className="appearance-none block w-full bg-grey-lighter text-grey-darker border border-red rounded py-3 px-4 mb-3"
-                    />
-                  </div>
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                      Menú
-                    </label>
-                    <select
-                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
-                      defaultValue=""
-                      id="menu"
-                      value={menu || ""}
-                      onChange={(e) => setMenu(e.target.value)}
-                    >
-                      <option value="" disabled>
-                        {menu ? "Selecciona una menú" : "Sin menú definido"}
-                      </option>
-                      <option value="MenuPrincipal">Menu Principal</option>
-                      <option value="Menu segundario">Menu segundario</option>
-                      <option value="Menu x">Menu x</option>
-                      <option value="Menu a">Menu a</option>
-                      <option value="Menu e">Menu e</option>
-                    </select>
-                  </div>
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label
-                      htmlFor="number"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Categoria Menú
-                    </label>
-                    <select
-                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
-                      defaultValue=""
-                      value={categoriaMenu || ""}
-                      onChange={(e) => setcategoriaMenu(e.target.value)}
-                      id="categoriaMenu"
-                    >
-                      <option value="" disabled>
-                        {categoriaMenu
-                          ? "Selecciona una categoria"
-                          : "Sin categoria definida"}
-                      </option>
-                      <option value="Entradas">Entradas</option>
-                      <option value="Fuertes">Fuertes</option>
-                      <option value="Hamburguezas">Hamburguezas</option>
-                      <option value="Perros Calientes">Perros Calientes</option>
-                      <option value="Bebidas">Bebidas</option>
-                    </select>
-                  </div>
-                </div>
+  <div className="col-span-2">
+    <form className="space-y-6" onSubmit={handleEditSubmit}>
+      <div className="p-6 h-[400px] overflow-y-auto rounded-lg shadow-md">
+        {/* Nombre Producto */}
+        <div className="mb-4">
+          <label
+            htmlFor="nombreProducto"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Nombre Producto
+          </label>
+          <input
+            type="text"
+            id="nombreProducto"
+            value={nombreProducto}
+            onChange={(e) => setNombreProducto(e.target.value)}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+            placeholder="Nombre producto"
+            required
+          />
+        </div>
 
-                <div className="-mx-3 md:flex mb-6">
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                      Calificación Producto
-                    </label>
-                    <select
-                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
-                      defaultValue=""
-                      value={calificacionProducto || ""}
-                      onChange={(e) => setcalificacionProducto(e.target.value)}
-                      id="calificacionProducto"
-                    >
-                      <option value="" disabled>
-                        {calificacionProducto
-                          ? "Selecciona una calificación"
-                          : "Sin calificación definida"}
-                      </option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                    </select>
-                  </div>
-                  <div className="md:w-full px-3 mb-6 md:mb-0">
-                    <label
-                      htmlFor="number"
-                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                    >
-                      Estado Producto
-                    </label>
-                    <select
-                      className="block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4"
-                      defaultValue=""
-                      value={estadoProducto || ""}
-                      onChange={(e) => setestadoProducto(e.target.value)}
-                      id="estadoProducto"
-                    >
-                      <option value="" disabled>
-                        {estadoProducto
-                          ? "Selecciona un estado"
-                          : "Sin estado definido"}
-                      </option>
-                      <option value="Activo">Activo</option>
-                      <option value="Inactivo">Inactivo</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+        {/* Descripción Producto */}
+        <div className="mb-4">
+          <label
+            htmlFor="descripcionProducto"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Descripción Producto
+          </label>
+          <input
+            type="text"
+            id="descripcionProducto"
+            value={descripcionProducto}
+            onChange={(e) => setdescripcionProducto(e.target.value)}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+            placeholder="Descripción producto"
+            required
+          />
+        </div>
 
-              <button
-                type="submit"
-                className="w-96 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-              >
-                Actualizar Producto
-              </button>
-            </form>
+        {/* Checkbox: ¿Producto con variaciones? */}
+        <div className="mb-4">
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={productoConVariaciones}
+              onChange={(e) => setProductoConVariaciones(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded"
+            />
+            <span className="text-sm font-medium text-gray-900">
+              ¿Producto con variaciones de precio?
+            </span>
+          </label>
+        </div>
+
+        {/* Valor Producto (si no tiene variaciones) */}
+        {!productoConVariaciones && (
+          <div className="mb-4">
+            <label
+              htmlFor="valorProducto"
+              className="block mb-2 text-sm font-medium text-gray-900"
+            >
+              Valor Producto
+            </label>
+            <input
+              type="number"
+              id="valorProducto"
+              value={valorProducto}
+              onChange={(e) => setValorProducto(e.target.value)}
+              className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+              placeholder="Valor producto"
+              required
+            />
           </div>
+        )}
+
+        {/* Variaciones del Producto (si tiene variaciones) */}
+        {productoConVariaciones && (
+          <div className="mb-4">
+            <label
+              htmlFor="variacionesProducto"
+              className="block mb-2 text-sm font-medium text-gray-900"
+            >
+              Variaciones del Producto
+            </label>
+
+            {variaciones.map((variacion, index) => (
+              <div key={index} className="flex items-center space-x-4 mb-3">
+                <input
+                  type="text"
+                  value={variacion.descripcion}
+                  onChange={(e) =>
+                    handleVariacionChange(index, "descripcion", e.target.value)
+                  }
+                  placeholder="Descripción de la variación"
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                />
+                <input
+                  type="number"
+                  value={variacion.valor}
+                  onChange={(e) =>
+                    handleVariacionChange(index, "valor", e.target.value)
+                  }
+                  placeholder="Valor de la variación"
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                />
+                <button
+                  type="button"
+                  className="text-red-500"
+                  onClick={() => eliminarVariacion(index)}
+                >
+                  Eliminar
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              className="text-blue-500 px-2 py-1 bg-blue-100 rounded-full"
+              onClick={agregarVariacion}
+            >
+              +
+            </button>
+          </div>
+        )}
+
+        {/* Imagen Producto */}
+        <div className="mb-4">
+          <label
+            htmlFor="imgProducto"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Imagen Producto
+          </label>
+          <input
+            type="file"
+            id="imgProducto"
+            onChange={handleImageChange}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+          />
+        </div>
+
+        {/* Menú */}
+        <div className="mb-4">
+          <label
+            htmlFor="menu"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Menú
+          </label>
+          <select
+            id="menu"
+            value={menu || ""}
+            onChange={handleMenuChange}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+          >
+            <option value="" hidden>
+              {menu ? "Selecciona una categoría" : "Sin categoría definida"}
+            </option>
+            {DataMenus.length > 0 ? (
+              DataMenus.map((menu) => (
+                <option key={menu.IdMenu} value={menu.IdMenu}>
+                  {menu.nombre}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>
+                No hay menús configurados
+              </option>
+            )}
+          </select>
+        </div>
+
+        {/* Categoría Menú */}
+        <div className="mb-4">
+          <label
+            htmlFor="categoriaMenu"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Categoría Menú
+          </label>
+          <select
+            id="categoriaMenu"
+            value={categoriaMenu || ""}
+            onChange={handlemenuCategory}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+          >
+            <option value="" hidden>
+              {categoriaMenu
+                ? "Selecciona una categoría"
+                : "Sin categoría definida"}
+            </option>
+            {categoriasFiltradas.length > 0 ? (
+              categoriasFiltradas.map((categoria) => (
+                <option key={categoria.IdCategoria} value={categoria.IdCategoria}>
+                  {categoria.nombre}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>
+                No hay categorías para este menú
+              </option>
+            )}
+          </select>
+        </div>
+
+        {/* Calificación Producto */}
+        <div className="mb-4">
+          <label
+            htmlFor="calificacionProducto"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Calificación Producto
+          </label>
+          <select
+            id="calificacionProducto"
+            value={calificacionProducto}
+            onChange={handlecalificacionProducto}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+            required
+          >
+            <option value="" hidden>
+              Selecciona una opción
+            </option>
+            {[1, 2, 3, 4, 5].map((cal) => (
+              <option key={cal} value={cal}>
+                {cal}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Estado Producto */}
+        <div className="mb-4">
+          <label
+            htmlFor="estadoProducto"
+            className="block mb-2 text-sm font-medium text-gray-900"
+          >
+            Estado Producto
+          </label>
+          <select
+            id="estadoProducto"
+            value={estadoProducto}
+            onChange={handleEstadoProdcuto}
+            className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+            required
+          >
+            <option value="" hidden>
+              Selecciona un estado
+            </option>
+            <option value="Activo">Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Botón de Actualización */}
+      <button
+        type="submit"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+      >
+        Actualizar Producto
+      </button>
+    </form>
+  </div>
+</div>
+
         </Modal>
+
         <Modal
           isOpen={isModalOpenn}
           nombre="Eliminar Producto"

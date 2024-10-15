@@ -45,7 +45,6 @@ const Login = () => {
           // console.log("userdatasidebar", userData);
           setUserRole(userData.role);
           setUserPaquete(userData.paquete);
-          console.log(UserPaquete,"jef")
         } else {
           // console.log("No hay usuario autenticado.");
         }
