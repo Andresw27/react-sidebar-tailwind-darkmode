@@ -77,7 +77,7 @@ function Carrito({ closeModal, fetchOrders, ordenId, dataCarrito, onBlur,order }
   
       return unsubscribe;
     } catch (error) {
-      console.error("Error al obtener los datos:", error.message);
+      console.error("Error al obtener los datoss:", error.message);
     }
   };
   
