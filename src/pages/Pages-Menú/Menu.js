@@ -15,7 +15,7 @@ import { IoMdClose } from "react-icons/io";
 import Carrito from "../../components/CarritoMenu";
 import { useSelector } from "react-redux";
 import AlertMenu from "../../components/AlertMenu"; // Importa el componente de alerta
-import LogoJeicy from "../../assets/jeicy.png";
+import LogoJeicy from "../../assets/logoJeicy.svg";
 import {
   collection,
   getDocs,
@@ -573,7 +573,7 @@ const MenuStyle3 = () => {
             <div>
               {categoriasData.map((categoria) =>
                 activeCategory === categoria.IdCategoria ? (
-                  <div className="md:px-40 w-full h-32 md:h-64  ">
+                  <div className="md:px-40 w-full h-32 md:h-[350px]  ">
                     {categoria.foto ? (
                       <img
                         src={categoria.foto}

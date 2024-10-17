@@ -75,7 +75,7 @@ function CategoriasMenu() {
   };
 
   const handleCopyToClipboard = () => {
-    const menuRuta = `${nombreEmpresa}/menu/${selectmenu?.IdMenu}`;
+    const menuRuta = `https://go.jeicy.co/${nombreEmpresa}/menu/${selectmenu?.IdMenu}`;
     navigator.clipboard
       .writeText(menuRuta)
       .then(() => {
@@ -651,25 +651,25 @@ function CategoriasMenu() {
   //funcion para editar categoria del menu
   const handleEditCategoriaMenu = async (e) => {
     e.preventDefault(); // Evitar el comportamiento por defecto del formulario
-  
+
     try {
       // Obtener el UID del usuario basado en el identificador
       const userQuery = query(
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
       );
-  
+
       const querySnapshot = await getDocs(userQuery);
       let uidUser = "";
       querySnapshot.forEach((doc) => {
         uidUser = doc.id;
       });
-  
+
       if (!uidUser) {
         console.error("Usuario no encontrado");
         return;
       }
-  
+
       const publicidadRef = doc(
         db,
         "categoriaMenu",
@@ -679,36 +679,35 @@ function CategoriasMenu() {
         "categorias",
         selectcategoriamenu.id
       );
-  
+
       // Mantener la foto existente inicialmente
       let logoURL = selectcategoriamenu.foto;
-  
+
       if (fotoCategoria) {
         const storage = getStorage();
         const storageRef = ref(
           storage,
           `ImgProductosmenu/${nombreEmpresa}/${fotoCategoria.name}`
         );
-  
+
         // Subir la nueva imagen a Firebase Storage
         await uploadBytes(storageRef, fotoCategoria);
-  
+
         // Obtener la URL de descarga de la nueva imagen
         logoURL = await getDownloadURL(storageRef); // Actualiza logoURL solo si hay una nueva foto
       }
-  
+
       // Crear el objeto con los nuevos datos de la publicidad
       const updatedPublicidad = {
         nombre: nombreCategoria || selectcategoriamenu.nombre,
         foto: logoURL, // Esto ahora puede ser la foto existente o la nueva
         descripcion: descripcionCategoria || selectcategoriamenu.descripcion,
         activeCategory: categoriaActiva,
-
       };
-  
+
       // Actualizar la publicidad en Firestore
       await updateDoc(publicidadRef, updatedPublicidad);
-  
+
       console.log("Publicidad editada exitosamente en Firestore.");
       fetchCategoriaMenu();
       handleClosededitCategoriamenu();
@@ -719,7 +718,7 @@ function CategoriasMenu() {
       console.error("Error al editar la publicidad:", error);
     }
   };
-  
+
   //Modal para eliminar categoria de un menu
   const HandleOpenDeleteCategoriaMenu = (categoria) => {
     setdeletecategoriamenu(true);
@@ -1210,7 +1209,6 @@ function CategoriasMenu() {
                                             }
                                             value={nombreCategoria}
                                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                          
                                           />
                                         </div>
                                         <div>
@@ -1229,7 +1227,6 @@ function CategoriasMenu() {
                                             }
                                             value={descripcionCategoria}
                                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                         
                                           />
                                         </div>
                                         <div>
@@ -1243,19 +1240,18 @@ function CategoriasMenu() {
                                             type="file"
                                             onChange={handleImageChange}
                                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                                          
                                           />
                                         </div>
                                         <div className="flex items-center">
                                           <input
                                             type="checkbox"
                                             id="categoriaActiva"
+                                            checked={categoriaActiva} 
                                             onChange={(e) =>
                                               setcategoriaActiva(
                                                 e.target.checked
                                               )
-                                            }
-                                            checked={categoriaActiva}
+                                            } 
                                             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
                                           />
                                           <label

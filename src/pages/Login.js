@@ -1,6 +1,6 @@
 import React, { useState,useContext ,useEffect} from "react";
 import { useNavigate } from "react-router-dom";
-import LogoHeader from "../assets/jeicy.png";
+import LogoHeader from "../assets/logoJeicy.svg";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,

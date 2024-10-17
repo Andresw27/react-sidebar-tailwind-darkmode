@@ -4,6 +4,7 @@ import { BiBriefcaseAlt } from "react-icons/bi";
 import { MdOutlinePendingActions } from "react-icons/md";
 import { MdAccessTimeFilled } from "react-icons/md";
 import { MdCancel } from "react-icons/md";
+import { FaFolderPlus } from "react-icons/fa";
 
 import { MdDateRange } from "react-icons/md";
 
@@ -51,6 +52,15 @@ const Home = ({ totalValue }) => {
   const [openFilter, setOpenFilter] = useState();
   const [searchVisible, setSearchVisible] = useState(false);
   const [numeroWp, setNumeroWp] = useState(0);
+  const [nombreClientePedido, setnombreClientePedido] = useState("");
+  const [numeroClientePedido, setnumeroClientePedido] = useState("");
+  const [numeroWpClientePedido, setnumeroWpClientePedido] = useState("");
+  const [direccionClientePedido, setdireccionClientePedido] = useState("");
+  const [prefijoWpClientePedido, setprefijoWpClientePedido] = useState('+57');
+  const [puntoreferenciaClientePedido, setpuntoreferenciaClientePedido] =
+    useState("");
+  const [descripcionClientePedido, setdescripcionClientePedido] = useState("");
+  const [metodoPagoClientePedido, setmetodoPagoClientePedido] = useState("");
 
   const {
     uidUser,
@@ -67,8 +77,8 @@ const Home = ({ totalValue }) => {
 
   const editableRef = useRef(null);
   const [fecha, setFecha] = useState(new Date());
+
   let Puntos = Number(PuntosporValor);
-  // console.log("Puntos",Puntos)
 
   // Nombres de los meses en español
   const nombresMeses = [
@@ -85,6 +95,16 @@ const Home = ({ totalValue }) => {
     "noviembre",
     "diciembre",
   ];
+
+  const [openModalNewPedido, setopenModalNewPedido] = useState("");
+
+  const handleOpenModalNewPedido = () => {
+    setopenModalNewPedido(true);
+  };
+
+  const handleClosedModalNewPedido = () => {
+    setopenModalNewPedido(false);
+  };
 
   // Función para actualizar la fecha y hora
   const actualizarReloj = () => {
@@ -137,42 +157,42 @@ const Home = ({ totalValue }) => {
         collection(db, "usuarios"),
         where("identificador", "==", identificador)
       );
-  
+
       const querySnapshot = await getDocs(userQuery);
       let uidUser = "";
       querySnapshot.forEach((doc) => {
         uidUser = doc.id;
       });
-  
+
       if (!uidUser) {
         console.log("No user found with the given identifier");
         return;
       }
-  
+
       console.log("UID of usersss:", uidUser);
-  
+
       const ordersRef = collection(db, "pedidos", uidUser, "historial");
       const ordersQuery = query(ordersRef, orderBy("createAt", "asc"));
-  
+
       const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
         const pedidos = [];
         snapshot.forEach((doc) => {
           const pedido = doc.data();
-  
+
           console.log("Pedido Data:", pedido);
-  
+
           const valorTotal = Array.isArray(pedido.carrito)
             ? pedido.carrito.reduce(
                 (acc, item) => acc + item.cantidad * item.valorp,
                 0
               )
             : 0;
-  
+
           pedidos.unshift({ ...pedido, id: doc.id, valor: valorTotal });
         });
-  
+
         console.log("Total de Pedidos:", pedidos);
-  
+
         const valorTotalPedidos = pedidos.reduce(
           (acc, pedido) => acc + pedido.valor,
           0
@@ -180,34 +200,16 @@ const Home = ({ totalValue }) => {
         setValorTotal(valorTotalPedidos);
         setDataOrder(pedidos);
       });
-  
+
       return () => unsubscribe();
     } catch (error) {
       console.error("Error fetching orders:", error);
     }
   };
-  
+
   useEffect(() => {
     fetchOrders();
   }, []);
-  
-
-  // const fetchOrders = async () => {
-  //   try {
-  //     const response = await fetch(
-  //       `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedidos/${identificador}`
-  //     );
-  //     const data = await response.json();
-  //     setDataOrder(data.pedidos);
-  //     console.log("la data essss", data.pedidos);
-  //   } catch (error) {
-  //     // console.error("Error al obtener los datos:", error);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchOrders();
-  // }, []);
 
   const getTrClasses = (estado) => {
     switch (estado) {
@@ -329,10 +331,10 @@ const Home = ({ totalValue }) => {
     const orderIndex = newDataOrder.findIndex(
       (order) => order.id === editOrderId
     );
-  
+
     if (orderIndex !== -1) {
       const orderId = newDataOrder[orderIndex].id;
-  
+
       try {
         const response = await fetch(
           `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}/${orderId}`,
@@ -344,22 +346,27 @@ const Home = ({ totalValue }) => {
             body: JSON.stringify(newDataOrder[orderIndex]),
           }
         );
-  
+
         if (!response.ok) {
-          throw new Error("Error al actualizar los datos del pedido. Inténtalo nuevamente.");
+          throw new Error(
+            "Error al actualizar los datos del pedido. Inténtalo nuevamente."
+          );
         }
-  
+
         // Actualiza el estado local solo después de una respuesta exitosa
         setDataOrder((prevDataOrder) =>
           prevDataOrder.map((order) =>
             order.id === editOrderId ? { ...order, ...dataOrder } : order
           )
         );
-  
+
         setAlertMessage("Información actualizada con éxito");
         setShowAlert(true);
       } catch (error) {
-        setAlertMessage(error.message || "Ocurrió un error al intentar actualizar el pedido. Por favor, inténtalo de nuevo más tarde.");
+        setAlertMessage(
+          error.message ||
+            "Ocurrió un error al intentar actualizar el pedido. Por favor, inténtalo de nuevo más tarde."
+        );
         setShowErrorAlert(true);
         console.error("Error:", error);
       } finally {
@@ -367,7 +374,6 @@ const Home = ({ totalValue }) => {
       }
     }
   };
-  
 
   const handleClickOutside = (event) => {
     if (editableRef.current && !editableRef.current.contains(event.target)) {
@@ -590,6 +596,82 @@ const Home = ({ totalValue }) => {
   const isFilterActive = (filterType, value) =>
     selectedFilters[filterType] === value;
 
+  const getRandomIdentifier = () => {
+    const characters = "0123456789";
+    let result = "";
+    const length = 5;
+
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters[randomIndex];
+    }
+
+    return result;
+  };
+
+  function generarFechaActual() {
+    const fecha = new Date();
+
+    // Obtener día, mes y año
+    const dia = String(fecha.getDate()).padStart(2, "0"); // Asegura que tenga 2 dígitos
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0"); // Los meses van de 0 a 11, por eso sumamos 1
+    const anio = fecha.getFullYear();
+
+    // Formatear fecha como dd/mm/yyyy
+    const fechaFormateada = `${dia}/${mes}/${anio}`;
+
+    return fechaFormateada;
+  }
+
+  const handlesubmitnewpedido = async (e) => {
+    e.preventDefault();
+    const numeroCompletoWp = `${prefijoWpClientePedido}${numeroWpClientePedido}`;
+
+    try {
+      const newPedido = {
+        nombre: nombreClientePedido,
+        numeroWp: numeroCompletoWp,
+        numeroContacto: numeroClientePedido,
+        direccion: direccionClientePedido,
+        puntoReferencia: puntoreferenciaClientePedido,
+        descripcion: descripcionClientePedido,
+        metodoPago: metodoPagoClientePedido,
+        estado: "Solicitado",
+        valor: 0,
+        fecha: generarFechaActual(),
+        pedidoId: getRandomIdentifier(),
+      };
+      console.log(newPedido, "pedido");
+      // Enviar los datos a la API
+      const response = await fetch(
+        `https://us-central1-jeicydelivery.cloudfunctions.net/app/pedido/${identificador}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newPedido),
+        }
+      );
+
+      if (!response.ok) {
+        setAlertMessage("Error al AÑADIR el PEDIDO. Inténtalo nuevamente.");
+        setShowErrorAlert(true);
+
+        handleClosedModalNewPedido();
+      } else {
+        setAlertMessage("Pedido añadido con éxito");
+        setShowAlert(true);
+        handleClosedModalNewPedido();
+      }
+    } catch (error) {
+      console.log("pedido no exitozamente");
+    }
+  };
+
+  const handlemetododepago = (event) => {
+    setmetodoPagoClientePedido(event.target.value);
+  };
   return (
     <Layout>
       {showAlert && (
@@ -607,8 +689,173 @@ const Home = ({ totalValue }) => {
           <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
             Bienvenidos
           </p>
-        
         </div>
+
+        <Tooltip content="Nuevo Pedido">
+          <div data-dial-init class="fixed z-50 right-11 bottom-10 group">
+            <button
+              onClick={handleOpenModalNewPedido}
+              type="button"
+              data-dial-toggle="speed-dial-menu-click"
+              data-dial-trigger="click"
+              aria-controls="speed-dial-menu-click"
+              aria-expanded="false"
+              class="flex items-center justify-center text-white bg-black rounded-full w-14 h-14 hover:bg-slate-800  "
+            >
+              <FaFolderPlus className="text-xl" />
+            </button>
+          </div>
+        </Tooltip>
+        <Modal
+          isOpen={openModalNewPedido}
+          onClose={handleClosedModalNewPedido}
+          nombre="Nuevo Pedido"
+          size="auto"
+        >
+          <form className="space-y-6" onSubmit={handlesubmitnewpedido}>
+            <div className="p-6 h-[400px] overflow-y-auto rounded-lg shadow-md">
+              {/* Nombre Cliente */}
+              <div className="mb-4">
+                <label
+                  htmlFor="nombreCliente"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Nombre Cliente
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) => setnombreClientePedido(e.target.value)}
+                  className="block w-[400px] border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                  required
+                />
+              </div>
+
+              {/* Número de Contacto */}
+              <div className="mb-4">
+                <label
+                  htmlFor="numeroContacto"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Numero Contacto
+                </label>
+                <input
+                  type="number"
+                  onChange={(e) => setnumeroClientePedido(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                  required
+                />
+              </div>
+
+              {/* Número de WhatsApp con select de prefijo */}
+              <div className="mb-4">
+                <label
+                  htmlFor="numeroWp"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Numero WhatsApp
+                </label>
+                <div className="flex">
+                  <select
+                    className="block border border-gray-300 rounded-l-lg py-2 px-3 text-gray-900"
+                    defaultValue="+57"
+                    onChange={(e) => setprefijoWpClientePedido(e.target.value)}
+                  >
+                    <option value="+57">+57</option>
+                    <option value="+1">+1 </option>
+                  </select>
+                  <input
+                    type="number"
+                    onChange={(e) => setnumeroWpClientePedido(e.target.value)}
+                    className="block w-full border border-l-0 border-gray-300 rounded-r-lg py-2 px-3 text-gray-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Dirección */}
+              <div className="mb-4">
+                <label
+                  htmlFor="direccion"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Direccion
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) => setdireccionClientePedido(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                  required
+                />
+              </div>
+
+              {/* Punto de Referencia */}
+              <div className="mb-4">
+                <label
+                  htmlFor="puntoReferencia"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Punto Referencia
+                </label>
+                <input
+                  type="text"
+                  required
+                  onChange={(e) =>
+                    setpuntoreferenciaClientePedido(e.target.value)
+                  }
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                />
+              </div>
+
+              {/* Descripción Pedido */}
+              <div className="mb-4">
+                <label
+                  htmlFor="descripcionPedido"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Descripción Pedido
+                </label>
+                <input
+                  type="text"
+                  required
+                  onChange={(e) => setdescripcionClientePedido(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                />
+              </div>
+
+              {/* Método de Pago */}
+              <div className="mb-4">
+                <label
+                  htmlFor="metodoPago"
+                  className="block mb-2 text-sm font-medium text-gray-900"
+                >
+                  Metodo Pago
+                </label>
+                <select
+                  className="block w-full border border-gray-300 rounded-lg py-2 px-3 text-gray-900"
+                  defaultValue=""
+                  required
+                  onChange={handlemetododepago}
+                >
+                  <option value="" hidden>
+                    Selecciona un metodo de pago
+                  </option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Datafono">Datafono</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Botón de Actualización */}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+            >
+              Realizar Pedido
+            </button>
+          </form>
+        </Modal>
+
         <div className="md:px-2 grid grid-cols-1 md:grid-cols-1 gap-4 ">
           <div className="col-span-4 grid grid-cols-5 gap-3 mb-4">
             <div className="relative flex gap-4 w-auto h-auto p-4 border rounded-md bg-red-100 bg-opacity-80 backdrop-blur-sm shadow-md">

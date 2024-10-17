@@ -38,7 +38,7 @@ function MenúWeb() {
   const [fondoPreview, setFondoPreview] = useState("");
   const [logoPreview, setLogoPreview] = useState("");
   const [botones, setBotones] = useState([]);
-  const [currentBoton, setCurrentBoton] = useState(null);
+  const [currentBoton, setCurrentBoton] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const { identificador, nombreEmpresa } = useSelector((state) => state.user);
   const [showModalRedSocial, setShowModalRedSocial] = useState(false);
@@ -49,6 +49,8 @@ function MenúWeb() {
   const [DataMenuWeb, setDataMenuWeb] = useState([]);
   const [openmodaleditmenuweb, setopenmodaleditmenuweb] = useState("");
   const [selectEditMenuweb, setselectEditMenuweb] = useState(null);
+  const [showFormulario, setShowFormulario] = useState(false);
+
   const iconosRedes = {
     facebook: <FaFacebook />,
     twitter: <FaTwitter />,
@@ -272,6 +274,26 @@ function MenúWeb() {
     setopenmodaleditmenuweb(false);
   };
 
+  const handleEditarMenu = () => {
+    const menuExistente = DataMenuWeb[0]; // Asume que el menú existente es el primero
+
+    if (menuExistente) {
+      setShowFormulario(true);
+      
+      // Cargar los datos del menú
+      setFondo(menuExistente.fondo);
+      setLogo(menuExistente.logo);
+      
+      // Cargar los botones
+      setBotones(menuExistente.botones || []); // Asume que `botones` está en el menú existente
+      console.log('Botones:', botones);
+      
+      // Cargar las redes sociales
+      setRedesSociales(menuExistente.redesSociales || []); // Asume que `redesSociales` está en el menú existente
+      console.log('Redes Sociales:', redesSociales);
+    }
+  };
+
   return (
     <Layout>
       {showAlert && (
@@ -282,90 +304,7 @@ function MenúWeb() {
         <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
           Configurar Menú Web
         </p>
-        {DataMenuWeb.length > 0 ? (
-          <>
-            {DataMenuWeb.map((menu, index) => (
-              <button
-                key={index}
-                onClick={() => HandleOpenmodalEditMenuweb(menu)}
-                className="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                type="button"
-              >
-                Ver menú configurado
-              </button>
-            ))}
-
-<Modal
-  nombre="Editar Menú Web"
-  isOpen={openmodaleditmenuweb}
-  onClose={HandleClosedmodalEditMenuweb}
-  size="auto"
->
-  {selectEditMenuweb ? (
-    <div
-      className="dark:text-white top-0 left-0 w-[400px] bg-cover bg-center bg-no-repeat min-h-screen flex flex-col justify-center items-center"
-      style={{
-        backgroundImage: `url(${selectEditMenuweb.fondo || ''})`,
-      }}
-    >
-      <div className="flex flex-col gap-4 text-center">
-        <img
-          src={selectEditMenuweb.logo || ''}
-          alt="Logo"
-          className="h-40 w-auto mx-auto"
-        />
-
-        <div className="flex flex-col gap-4 text-center">
-          {selectEditMenuweb.botones?.map((boton) => (
-            <div key={boton.id} className="relative">
-              <a
-                href={boton.href}
-                className="py-2 px-4 inline-block font-semibold text-center"
-                style={{
-                  backgroundColor: boton.backgroundColor,
-                  color: boton.textColor,
-                  borderRadius: `${boton.borderRadius}px`,
-                  borderWidth: `${boton.borderWidth}px`,
-                  borderStyle: "solid",
-                }}
-              >
-                {boton.nombre || "Botón Sin Nombre"}
-              </a>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-center space-x-4">
-          {selectEditMenuweb.redesSociales?.map((red) => (
-            <div className="flex flex-col" key={red.id}>
-              <div className="relative p-2 rounded-full flex flex-col items-center">
-                <a
-                  href={red.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-full"
-                  style={{
-                    backgroundColor: red.backgroundColor,
-                    color: red.ColorIcon,
-                  }}
-                >
-                  <div className="text-3xl">
-                    {iconosRedes[red.icon] || <FaFacebook />}
-                  </div>
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  ) : (
-    <p>Loading...</p> // Optional: you can display a loading message if needed
-  )}
-</Modal>
-
-          </>
-        ) : null}
+     
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 mx-4 gap-6">
@@ -373,8 +312,96 @@ function MenúWeb() {
         <div className="border shadow-xs dark:bg-slate-600 flex flex-col justify-center items-center w-full md:w-auto mb-12 h-auto px-6 py-2 rounded-2xl md:col-span-1">
           {DataMenuWeb.length > 0 ? (
             <>
-              <p>Ya no se puede configurar más menús web</p>
-            </>
+        <p className="text-xs mb-2">
+            Ya no se puede configurar más menús web, pero puedes editar el menú existente.
+          </p>
+          <button
+            type="button"
+            onClick={handleEditarMenu}
+            className="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+          >
+            Editar Menú Existente
+          </button>  
+          {showFormulario && (         
+          <form className="space-y-4" >
+                {/* Input para la imagen de fondo */}
+                <div>
+                  <label
+                    htmlFor="fondo"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Fondo web
+                  </label>
+                  <input
+                    type="file"
+                    id="fondo"
+                    ref={fondoInputRef}
+                    onChange={handleFondoChange}
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    required
+                  />
+                </div>
+
+                {/* Input para la imagen del logo */}
+                <div>
+                  <label
+                    htmlFor="logo"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Logo web
+                  </label>
+                  <input
+                    type="file"
+                    ref={logoInputRef}
+                    id="logo"
+                    onChange={handleLogoChange}
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    required
+                  />
+                </div>
+
+                {/* Botón para agregar más botones */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openModal({
+                      nombre: "",
+                      href: "",
+                      backgroundColor: "",
+                      textColor: "",
+                      borderRadius: "",
+                      borderWidth: "",
+                    })
+                  }
+                  className="w-full text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+                >
+                  Agregar Botón
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openModalRedSocial({
+                      icon: "facebook",
+                      href: "",
+                      backgroundColor: "",
+                      ColorIcon: "",
+                    })
+                  }
+                  className="w-full text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+                >
+                  Agregar Red Social
+                </button>
+                <button
+                  type="submit"
+                  className="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+                >
+                  Guardar cambios
+                </button>
+              </form>
+            
+            )}
+           </>
           ) : (
             <>
               <form className="space-y-4" onSubmit={guardarTodoEnFirebase}>
@@ -450,7 +477,7 @@ function MenúWeb() {
                   type="submit"
                   className="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
                 >
-                  Guardar cambiose
+                  Guardar cambios
                 </button>
               </form>
             </>
@@ -459,6 +486,107 @@ function MenúWeb() {
 
         {/* Contenedor de vista previa */}
         <div className="col-span-2 mb-12 border rounded-2xl p-6 bg-white flex flex-col gap-6 max-h-[385px] overflow-y-auto">
+        {showFormulario && (       
+        <>
+              <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">
+                Vista Previa Menú Web
+              </p>
+              <div
+                className="dark:text-white top-0 left-0 w-full bg-cover bg-center bg-no-repeat min-h-screen flex flex-col justify-center items-center"
+                style={{
+                  backgroundImage: `url(${fondo})`,
+                }}
+              >
+                <div className="flex flex-col gap-4 text-center">
+             
+                    <img
+                      src={logo ||logoPreview}
+                      alt="Logo"
+                      className="h-40 w-auto mx-auto"
+                    />
+              
+
+                  {/* Renderizar los botones */}
+                  <div className="flex flex-col gap-4 text-center ">
+                    {botones.map((boton) => (
+                      <div key={boton.id} className="relative ">
+                        <a
+                          href={boton.href}
+                          className="py-2 px-4 inline-block font-semibold text-center"
+                          style={{
+                            backgroundColor: boton.backgroundColor,
+                            color: boton.textColor,
+                            borderRadius: `${boton.borderRadius}px`,
+                            borderWidth: `${boton.borderWidth}px`,
+                            borderStyle: "solid",
+                          }}
+                        >
+                          {boton.nombre || "Botón Sin Nombre"}
+                        </a>
+
+                        {/* Edit and Delete buttons */}
+                        <div className="absolute top-0 right-0">
+                          <button
+                            onClick={() => openModal(boton)}
+                            className="text-blue-500 mx-2"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminarBoton(boton.id)}
+                            className="text-red-500 mx-2"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-center space-x-4">
+                    {redesSociales.map((red) => (
+                      <div className="flex flex-col">
+                        <div
+                          key={red.id}
+                          className="relative  p-2 rounded-full flex flex-col items-center"
+                        >
+                          <a
+                            href={red.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-full"
+                            style={{
+                              backgroundColor: red.backgroundColor,
+                              color: red.ColorIcon,
+                            }}
+                          >
+                            <div className="text-3xl">
+                              {iconosRedes[red.icon] || <FaFacebook />}
+                            </div>{" "}
+                            {/* Tamaño del ícono ajustado */}
+                          </a>
+                        </div>
+                        <div className="flex space-x-2 mt-2">
+                          <button
+                            onClick={() => openModalRedSocial(red)}
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleEliminarRedSocial(red.id)}
+                            className="text-sm text-red-600 hover:underline"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+        )}
           {DataMenuWeb.length > 0 ? null : (
             <>
               <p className="md:text-3xl text-2xl text-zinc-600 dark:text-white text-start md:text-left font-semibold">

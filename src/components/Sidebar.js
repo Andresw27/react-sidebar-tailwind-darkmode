@@ -5,7 +5,7 @@ import { BsArrowLeftCircle } from "react-icons/bs";
 import { FaHome, FaHamburger, FaUser, FaHandPointRight, FaCubes } from "react-icons/fa";
 import { IoFastFoodSharp } from "react-icons/io5";
 import { auth } from "../firebase-config";
-import Logo from "../assets/jeicy.png";
+import Logo from "../assets/logoJeicy.svg";
 import Logosmall from "../assets/jeicyy.png";
 import fetchUserData from "./data";
 import HamburgerButton from "./HamburgerMenuButton/HamburgerButton";
@@ -176,7 +176,7 @@ import { UserContext } from "../UserContext";
               src={open ? Logo : Logosmall}
               alt="Logo"
               className={`transition-all duration-300 ${
-                open ? "h-20" : "h-16"
+                open ? "h-14" : "h-16"
               }`}
             />
           </div>
